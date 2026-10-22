@@ -19,12 +19,21 @@ using OpenCvSharp;
 using OpenCvSharp.WpfExtensions;
 
 /// <summary>
-/// ViewModel Đăng ký Hội viên mới với tính năng TỰ ĐỘNG THU THẬP FACE ID (Auto Capture):
-/// - Khi đưa mặt vào khung hình, hệ thống tự động phát hiện mặt đạt chuẩn (Confidence > 0.70, Width > 80px).
-/// - Tự động trích xuất 3 mẫu vector 512-d ArcFace cách nhau 1 giây (0/3 -> 1/3 -> 2/3 -> 3/3).
-/// - Hiển thị Bounding Box màu Cam bám theo mặt kèm nhãn 'FACE DETECTED'.
-/// - Thanh ProgressBar tăng tiến 0% -> 33% -> 66% -> 100% kèm âm thanh bíp mỗi lần chụp.
-/// - Đủ 3/3 mẫu thì kích hoạt nút Lưu Hội Viên.
+/// Định nghĩa các góc mặt mục tiêu thu thập Face ID.
+/// </summary>
+public enum FacePose
+{
+    Center = 0,    // Bước 1: Chính diện (Ratio: 0.42 - 0.58)
+    TurnLeft = 1,  // Bước 2: Nghiêng trái (Ratio: < 0.38)
+    TurnRight = 2  // Bước 3: Nghiêng phải (Ratio: > 0.62)
+}
+
+/// <summary>
+/// ViewModel Đăng ký Hội viên mới với BỘ HƯỚNG DẪN XOAY GÓC MẶT (Visual Angle Guide):
+/// - Đo góc yaw qua 5 facial landmarks (khoảng cách mũi đến mắt trái và mắt phải).
+/// - Quy trình 3 bước chuẩn: Bước 1 (Chính diện) -> Bước 2 (Nghiêng trái) -> Bước 3 (Nghiêng phải).
+/// - Chỉ khi xoay đúng góc target thì mới đếm giờ ổn định, phát beep và chụp.
+/// - Đồng bộ vị trí con trỏ Pose Indicator Bar real-time (0.0 -> 1.0).
 /// </summary>
 public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
 {
@@ -42,26 +51,26 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
     private string _statusMessage = "Vui lòng điền thông tin hội viên và bấm 'Bắt đầu quét Face ID'";
     private Brush _statusColor = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // Xám
     private string _errorMessage = string.Empty;
-    private bool _isCapturingActive = false;
     private bool _isBusy = false;
+    private bool _isCapturingActive = false;
     private int _isRenderingUi = 0;
     private int _isProcessingAutoCapture = 0;
     private bool _disposed = false;
     private FaceBox? _lastDetectedFace;
     private DateTime _lastFaceDetectedTime = DateTime.MinValue;
 
-    // Bounding Box Overlay
-    private bool _isFaceDetected = false;
-    private double _faceRectLeft = 0;
-    private double _faceRectTop = 0;
-    private double _faceRectWidth = 0;
-    private double _faceRectHeight = 0;
-    private string _faceBoxLabel = "FACE DETECTED";
+    // Visual Angle Guide & Pose Estimation Properties
+    private double _currentPoseRatio = 0.5;
+    private double _poseIndicatorPointerLeft = 143;
+    private FacePose _currentTargetPose = FacePose.Center;
+    private string _currentTargetAngleText = "Góc 1/3: Nhìn thẳng (Chính diện)";
+    private bool _isAngleMatched = false;
+    private Brush _angleIndicatorColor = new SolidColorBrush(Color.FromRgb(255, 107, 0)); // Cam
+    private DateTime _poseMatchStartTime = DateTime.MinValue;
 
     // Auto-capture progress (0/3 -> 3/3)
     private double _progressValue = 0;
     private string _progressText = "0/3 mẫu";
-    private DateTime _lastSampleTime = DateTime.MinValue;
     private readonly List<float[]> _capturedVectors = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -146,6 +155,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             }
         }
     }
+
     public bool IsCapturingActive
     {
         get => _isCapturingActive;
@@ -162,42 +172,53 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         ? "🔄 Đang Quét... (Bấm để quét lại)"
         : "⚡ Bắt Đầu Quét Face ID";
 
-
-    // Bounding Box Properties
-    public bool IsFaceDetected
+    // Visual Angle Guide Properties
+    public double CurrentPoseRatio
     {
-        get => _isFaceDetected;
-        set => SetField(ref _isFaceDetected, value);
+        get => _currentPoseRatio;
+        set => SetField(ref _currentPoseRatio, value);
     }
 
-    public double FaceRectLeft
+    public double PoseIndicatorPointerLeft
     {
-        get => _faceRectLeft;
-        set => SetField(ref _faceRectLeft, value);
+        get => _poseIndicatorPointerLeft;
+        set => SetField(ref _poseIndicatorPointerLeft, value);
     }
 
-    public double FaceRectTop
+    public FacePose CurrentTargetPose
     {
-        get => _faceRectTop;
-        set => SetField(ref _faceRectTop, value);
+        get => _currentTargetPose;
+        set
+        {
+            if (SetField(ref _currentTargetPose, value))
+            {
+                OnPropertyChanged(nameof(IsTargetCenter));
+                OnPropertyChanged(nameof(IsTargetLeft));
+                OnPropertyChanged(nameof(IsTargetRight));
+            }
+        }
     }
 
-    public double FaceRectWidth
+    public bool IsTargetCenter => CurrentTargetPose == FacePose.Center;
+    public bool IsTargetLeft => CurrentTargetPose == FacePose.TurnLeft;
+    public bool IsTargetRight => CurrentTargetPose == FacePose.TurnRight;
+
+    public string CurrentTargetAngleText
     {
-        get => _faceRectWidth;
-        set => SetField(ref _faceRectWidth, value);
+        get => _currentTargetAngleText;
+        set => SetField(ref _currentTargetAngleText, value);
     }
 
-    public double FaceRectHeight
+    public bool IsAngleMatched
     {
-        get => _faceRectHeight;
-        set => SetField(ref _faceRectHeight, value);
+        get => _isAngleMatched;
+        set => SetField(ref _isAngleMatched, value);
     }
 
-    public string FaceBoxLabel
+    public Brush AngleIndicatorColor
     {
-        get => _faceBoxLabel;
-        set => SetField(ref _faceBoxLabel, value);
+        get => _angleIndicatorColor;
+        set => SetField(ref _angleIndicatorColor, value);
     }
 
     // ProgressBar Properties
@@ -224,9 +245,9 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         IsAutoCaptureComplete &&
         !IsBusy;
 
+    public ICommand StartCaptureCommand { get; }
     public ICommand ResetCaptureCommand { get; }
     public ICommand SaveMemberCommand { get; }
-    public ICommand StartCaptureCommand { get; }
     public ICommand CancelCommand { get; }
 
     public RegisterMemberViewModel(
@@ -242,15 +263,12 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         _attendanceCoordinator = attendanceCoordinator ?? throw new ArgumentNullException(nameof(attendanceCoordinator));
         _audioService = audioService ?? new AudioNotificationService();
 
-        ResetCaptureCommand = new RelayCommand(OnResetCapture);
         StartCaptureCommand = new RelayCommand(async () => await OnStartCaptureAsync());
+        ResetCaptureCommand = new RelayCommand(OnResetCapture);
         SaveMemberCommand = new RelayCommand(async () => await OnSaveMemberAsync());
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
 
-        // Lắng nghe luồng camera
         _cameraService.FrameCaptured += OnFrameCaptured;
-
-        // Tải danh sách gói tập
         _ = LoadPackagesAsync();
     }
 
@@ -283,13 +301,13 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
-    /// Nhận frame từ camera, render preview và tự động phân tích phát hiện khuôn mặt để Auto Capture.
+    /// Nhận frame từ camera, render preview kèm vẽ Bounding Box Cam trực tiếp lên Mat.
     /// </summary>
     private void OnFrameCaptured(object? sender, Mat frame)
     {
         if (frame.Empty()) return;
 
-        // 1. Render Video Preview lên UI Thread (chống tràn hàng đợi)
+        // 1. Render Video Preview lên UI Thread (chống tràn hàng đợi Dispatcher)
         if (Interlocked.CompareExchange(ref _isRenderingUi, 1, 0) == 0)
         {
             try
@@ -311,6 +329,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
 
                 var bitmap = BitmapSourceConverter.ToBitmapSource(frame);
                 bitmap.Freeze();
+
                 Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
                 {
                     try
@@ -329,8 +348,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             }
         }
 
-        // 2. TỰ ĐỘNG THU THẬP FACE ID (Auto Capture Engine)
-        // 2. TỰ ĐỘNG THU THẬP FACE ID (Chỉ chạy khi IsCapturingActive == true và chưa đủ 3 mẫu)
+        // 2. TỰ ĐỘNG THU THẬP FACE ID THEO GÓC MẶT (Visual Angle Guide Engine)
         if (IsCapturingActive && !IsAutoCaptureComplete && Interlocked.CompareExchange(ref _isProcessingAutoCapture, 1, 0) == 0)
         {
             var aiFrame = frame.Clone();
@@ -354,23 +372,66 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
-    /// Thuật toán kiểm tra tiêu chuẩn khuôn mặt và tự động chụp cách nhau 1 giây.
+    /// Thuật toán ước lượng góc Yaw qua 5 Landmarks và kiểm tra xoay đúng góc mục tiêu:
+    /// - Landmarks[0]: Mắt trái (x0, y0)
+    /// - Landmarks[1]: Mắt phải (x1, y1)
+    /// - Landmarks[2]: Mũi (x2, y2)
+    /// </summary>
+    public static float CalculateYawRatio(Point2f[]? landmarks)
+    {
+        if (landmarks == null || landmarks.Length < 3)
+            return 0.5f;
+
+        var leftEye = landmarks[0];
+        var rightEye = landmarks[1];
+        var nose = landmarks[2];
+
+        float distLeft = Math.Abs(nose.X - leftEye.X);
+        float distRight = Math.Abs(nose.X - rightEye.X);
+        float total = distLeft + distRight;
+
+        if (float.IsNaN(total) || float.IsInfinity(total) || total <= 0.0001f)
+            return 0.5f;
+
+        float ratio = distLeft / total;
+        return float.IsNaN(ratio) || float.IsInfinity(ratio) ? 0.5f : Math.Clamp(ratio, 0.0f, 1.0f);
+    }
+
+    /// <summary>
+    /// Kiểm tra tỉ lệ góc yaw hiện tại có khớp với góc mục tiêu của bước đang quét hay không.
+    /// </summary>
+    public static bool CheckIfPoseMatchesTarget(float ratio, FacePose targetPose)
+    {
+        return targetPose switch
+        {
+            FacePose.Center => ratio >= 0.42f && ratio <= 0.58f,
+            FacePose.TurnLeft => ratio < 0.38f,
+            FacePose.TurnRight => ratio > 0.62f,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// Thuật toán kiểm tra góc mặt, đếm thời gian giữ góc và tự động chụp khi đúng góc target.
     /// </summary>
     private async Task ProcessAutoCaptureAsync(Mat frame)
     {
-        // 1. Chạy SCRFD phát hiện khuôn mặt
+        // 1. Chạy SCRFD phát hiện khuôn mặt và 5 landmarks
         var faces = await _faceEngine.DetectFacesAsync(frame);
 
         if (faces == null || faces.Count == 0)
         {
             _lastDetectedFace = null;
+            _poseMatchStartTime = DateTime.MinValue;
+
             Application.Current?.Dispatcher.InvokeAsync(() =>
             {
-                IsFaceDetected = false;
                 if (IsCapturingActive && !IsAutoCaptureComplete)
                 {
                     StatusMessage = "Đang tìm khuôn mặt... Vui lòng nhìn vào camera.";
                     StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+                    IsAngleMatched = false;
+                    AngleIndicatorColor = new SolidColorBrush(Color.FromRgb(255, 107, 0));
                 }
             });
             return;
@@ -380,111 +441,120 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         var bestFace = faces.OrderByDescending(f => f.Width * f.Height).First();
         _lastDetectedFace = bestFace;
         _lastFaceDetectedTime = DateTime.UtcNow;
-        // Cập nhật vị trí Bounding Box màu Cam trên khung preview (Kích thước preview: ~450x260)
-        const double containerW = 450.0;
-        const double containerH = 260.0;
-        double scaleX = containerW / 1280.0;
-        double scaleY = containerH / 720.0;
 
-        if (Application.Current?.Dispatcher != null)
-        {
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                FaceRectLeft = Math.Max(0, bestFace.X1 * scaleX);
-                FaceRectTop = Math.Max(0, bestFace.Y1 * scaleY);
-                FaceRectWidth = Math.Max(20, bestFace.Width * scaleX);
-                FaceRectHeight = Math.Max(20, bestFace.Height * scaleY);
-                FaceBoxLabel = $"FACE DETECTED ({bestFace.Score * 100:F0}%)";
-                IsFaceDetected = true;
-            });
-        }
-        else
-        {
-            FaceRectLeft = Math.Max(0, bestFace.X1 * scaleX);
-            FaceRectTop = Math.Max(0, bestFace.Y1 * scaleY);
-            FaceRectWidth = Math.Max(20, bestFace.Width * scaleX);
-            FaceRectHeight = Math.Max(20, bestFace.Height * scaleY);
-            FaceBoxLabel = $"FACE DETECTED ({bestFace.Score * 100:F0}%)";
-            IsFaceDetected = true;
-        }
+        // 2. Tính toán tỉ lệ góc xoay đầu (Yaw Ratio)
+        float yawRatio = CalculateYawRatio(bestFace.Landmarks);
+        bool isAngleMatched = CheckIfPoseMatchesTarget(yawRatio, CurrentTargetPose);
 
-        // 2. Kiểm tra tiêu chuẩn chất lượng khuôn mặt (Confidence > 0.70 & Width > 80px)
+        // Cập nhật vị trí con trỏ Pose Indicator Bar real-time (thanh bar rộng 300px, pointer rộng 26px -> travel 274px)
+        double pointerPos = Math.Clamp(yawRatio * 274.0, 0, 274.0);
+
+        Application.Current?.Dispatcher.InvokeAsync(() =>
+        {
+            CurrentPoseRatio = yawRatio;
+            PoseIndicatorPointerLeft = pointerPos;
+            IsAngleMatched = isAngleMatched;
+            AngleIndicatorColor = isAngleMatched
+                ? new SolidColorBrush(Color.FromRgb(16, 185, 129)) // Xanh lá #10B981
+                : new SolidColorBrush(Color.FromRgb(255, 107, 0)); // Cam #FF6B00
+        });
+
+        // 3. Kiểm tra tiêu chuẩn chất lượng (Score > 0.70 & Width > 80px)
         bool isQualified = bestFace.Score > 0.70f && bestFace.Width > 80f && bestFace.Height > 80f;
         if (!isQualified)
         {
+            _poseMatchStartTime = DateTime.MinValue;
             Application.Current?.Dispatcher.InvokeAsync(() =>
             {
                 StatusMessage = "Khuôn mặt chưa rõ nét hoặc ở quá xa. Vui lòng tiến lại gần camera hơn.";
-                StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11)); // Vàng cam
+                StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));
             });
             return;
         }
 
-        // 3. Kiểm tra khoảng cách thời gian giữa 2 lần chụp (tối thiểu 1 giây = 1000ms)
-        var now = DateTime.UtcNow;
-        if ((now - _lastSampleTime).TotalMilliseconds >= 1000 && _capturedVectors.Count < 3)
+        // 4. CHỈ KHI NGƯỜI DÙNG QUAY ĐÚNG GÓC TARGET MỚI ĐẾM GIỜ VÀ CHỤP
+        if (!isAngleMatched)
         {
-            _lastSampleTime = now;
-
-            // Cắt vùng khuôn mặt an toàn
-            var rect = bestFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, frame.Width, frame.Height));
-            if (rect.Width < 40 || rect.Height < 40) return;
-
-            using var faceCrop = new Mat(frame, rect);
-
-            // Trích xuất vector 512 chiều qua ArcFace
-            var vector = await _faceEngine.ExtractEmbeddingAsync(faceCrop);
-            if (vector == null || vector.Length != 512) return;
-
-            var faceBitmap = BitmapSourceConverter.ToBitmapSource(faceCrop);
-            faceBitmap.Freeze();
-
-            _capturedVectors.Add(vector);
-            int currentCount = _capturedVectors.Count;
-
-            // Phát âm thanh bip theo thứ tự mẫu 1, 2, 3
-            _audioService.PlayCaptureBeep(currentCount);
-
-            void UpdateUiProgress()
+            _poseMatchStartTime = DateTime.MinValue; // reset bộ đếm giữ góc
+            Application.Current?.Dispatcher.InvokeAsync(() =>
             {
-                CapturedFaceImage = faceBitmap;
-                ProgressValue = (currentCount / 3.0) * 100.0;
-                ProgressText = $"{currentCount}/3 mẫu";
-
-                OnPropertyChanged(nameof(CapturedAngleCount));
-                OnPropertyChanged(nameof(HasFaceVector));
-
-                if (currentCount < 3)
-                {
-                    StatusMessage = $"📸 Đã tự động chụp mẫu {currentCount}/3! Hãy giữ yên khuôn mặt hoặc nghiêng nhẹ...";
-                    StatusColor = new SolidColorBrush(Color.FromRgb(255, 107, 0)); // Cam
-                }
-                else
-                {
-                    IsCapturingActive = false; // TẮT TỰ ĐỘNG CHỤP KHI ĐÃ ĐỦ 3 MẪU
-                    StatusMessage = "✅ ĐÃ THU THẬP ĐỦ 3 MẪU FACE ID! Nhấn 'Lưu Hội Viên' để hoàn tất.";
-                    StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Xanh lá
-                    OnPropertyChanged(nameof(IsAutoCaptureComplete));
-                    OnPropertyChanged(nameof(CanSave));
-                }
-            }
-
-            if (Application.Current?.Dispatcher != null)
-            {
-                await Application.Current.Dispatcher.InvokeAsync(UpdateUiProgress);
-            }
-            else
-            {
-                UpdateUiProgress();
-            }
+                StatusMessage = $"Hãy xoay mặt theo hướng dẫn: {CurrentTargetAngleText}";
+                StatusColor = new SolidColorBrush(Color.FromRgb(255, 107, 0));
+            });
+            return;
         }
-        else if (_capturedVectors.Count < 3)
+
+        // Đã đúng góc target -> Đếm thời gian giữ góc ổn định (tối thiểu 600ms)
+        if (_poseMatchStartTime == DateTime.MinValue)
+        {
+            _poseMatchStartTime = DateTime.UtcNow;
+        }
+
+        var holdDurationMs = (DateTime.UtcNow - _poseMatchStartTime).TotalMilliseconds;
+        if (holdDurationMs < 600)
         {
             Application.Current?.Dispatcher.InvokeAsync(() =>
             {
-                StatusMessage = $"Đang giữ khuôn mặt ổn định... Đã thu thập {_capturedVectors.Count}/3 mẫu";
+                StatusMessage = $"🎯 ĐÚNG GÓC! Hãy giữ yên khuôn mặt... ({(int)Math.Ceiling((600 - holdDurationMs) / 100.0)})";
+                StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
             });
+            return;
         }
+
+        // Đã giữ đúng góc ổn định đủ 600ms -> TIẾN HÀNH TRÍCH XUẤT VÀ CHỤP MẪU!
+        _poseMatchStartTime = DateTime.MinValue;
+
+        var rect = bestFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, frame.Width, frame.Height));
+        if (rect.Width < 40 || rect.Height < 40) return;
+
+        using var faceCrop = new Mat(frame, rect);
+
+        var vector = await _faceEngine.ExtractEmbeddingAsync(faceCrop);
+        if (vector == null || vector.Length != 512) return;
+
+        var faceBitmap = BitmapSourceConverter.ToBitmapSource(faceCrop);
+        faceBitmap.Freeze();
+
+        _capturedVectors.Add(vector);
+        int currentCount = _capturedVectors.Count;
+
+        // Phát âm thanh bip theo thứ tự mẫu 1, 2, 3
+        _audioService.PlayCaptureBeep(currentCount);
+
+        Application.Current?.Dispatcher.InvokeAsync(() =>
+        {
+            CapturedFaceImage = faceBitmap;
+            ProgressValue = (currentCount / 3.0) * 100.0;
+            ProgressText = $"{currentCount}/3 mẫu";
+
+            OnPropertyChanged(nameof(CapturedAngleCount));
+            OnPropertyChanged(nameof(HasFaceVector));
+
+            if (currentCount == 1)
+            {
+                CurrentTargetPose = FacePose.TurnLeft;
+                CurrentTargetAngleText = "Góc 2/3: Xoay nhẹ sang TRÁI (👈)";
+                StatusMessage = "📸 Chụp xong góc Chính diện! Giờ hãy xoay nhẹ mặt sang TRÁI.";
+                StatusColor = new SolidColorBrush(Color.FromRgb(255, 107, 0));
+            }
+            else if (currentCount == 2)
+            {
+                CurrentTargetPose = FacePose.TurnRight;
+                CurrentTargetAngleText = "Góc 3/3: Xoay nhẹ sang PHẢI (👉)";
+                StatusMessage = "📸 Chụp xong góc Trái! Giờ hãy xoay nhẹ mặt sang PHẢI.";
+                StatusColor = new SolidColorBrush(Color.FromRgb(255, 107, 0));
+            }
+            else if (currentCount >= 3)
+            {
+                IsCapturingActive = false; // Tắt chế độ tự động chụp
+                CurrentTargetAngleText = "✅ ĐÃ THU THẬP ĐỦ 3 GÓC MẶT!";
+                StatusMessage = "✅ ĐÃ THU THẬP ĐỦ 3 GÓC MẶT (Thẳng - Trái - Phải)! Nhấn 'Lưu Hội Viên' để hoàn tất.";
+                StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+
+                OnPropertyChanged(nameof(IsAutoCaptureComplete));
+                OnPropertyChanged(nameof(CanSave));
+            }
+        });
     }
 
     /// <summary>
@@ -496,8 +566,14 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         CapturedFaceImage = null;
         ProgressValue = 0;
         ProgressText = "0/3 mẫu";
-        _lastSampleTime = DateTime.MinValue;
-        StatusMessage = "Đã đặt lại. Đưa mặt vào khung camera để tự động quét lại từ đầu...";
+        _poseMatchStartTime = DateTime.MinValue;
+        CurrentTargetPose = FacePose.Center;
+        CurrentTargetAngleText = "Góc 1/3: Nhìn thẳng (Chính diện)";
+        CurrentPoseRatio = 0.5;
+        PoseIndicatorPointerLeft = 143;
+        IsAngleMatched = false;
+        AngleIndicatorColor = new SolidColorBrush(Color.FromRgb(255, 107, 0));
+        StatusMessage = "Đã đặt lại. Bấm 'Bắt đầu quét Face ID' để quét lại...";
         StatusColor = new SolidColorBrush(Color.FromRgb(107, 114, 128));
 
         OnPropertyChanged(nameof(CapturedAngleCount));
@@ -539,16 +615,22 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             return;
         }
 
-        // Đặt lại số mẫu và kích hoạt chế độ tự động chụp
+        // Đặt lại số mẫu và bắt đầu từ Bước 1: Chính diện
         _capturedVectors.Clear();
         CapturedFaceImage = null;
         ProgressValue = 0;
         ProgressText = "0/3 mẫu";
-        _lastSampleTime = DateTime.MinValue;
+        _poseMatchStartTime = DateTime.MinValue;
+        CurrentTargetPose = FacePose.Center;
+        CurrentTargetAngleText = "Góc 1/3: Nhìn thẳng (Chính diện)";
+        CurrentPoseRatio = 0.5;
+        PoseIndicatorPointerLeft = 143;
+        IsAngleMatched = false;
+        AngleIndicatorColor = new SolidColorBrush(Color.FromRgb(255, 107, 0));
 
         IsCapturingActive = true;
-        StatusMessage = "Đang quét... Vui lòng nhìn thẳng vào camera để thu thập 3 mẫu Face ID.";
-        StatusColor = new SolidColorBrush(Color.FromRgb(255, 107, 0)); // Cam
+        StatusMessage = "BƯỚC 1/3: Hãy nhìn thẳng vào camera để thu thập góc chính diện.";
+        StatusColor = new SolidColorBrush(Color.FromRgb(255, 107, 0));
 
         OnPropertyChanged(nameof(CapturedAngleCount));
         OnPropertyChanged(nameof(HasFaceVector));
@@ -571,7 +653,6 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            // Kiểm tra trùng lặp số điện thoại
             var isPhoneTaken = await _dbContext.Members.AnyAsync(m => m.PhoneNumber == phone);
             if (isPhoneTaken)
             {
@@ -580,7 +661,6 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
                 return;
             }
 
-            // Tạo thực thể Member theo Rich Domain Model với mẫu mặt đầu tiên
             var member = Member.Create(
                 fullName: name,
                 phoneNumber: phone,
@@ -588,20 +668,15 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
                 initialFaceVector: _capturedVectors[0],
                 packageId: SelectedPackage.Id);
 
-            // Bổ sung các góc mặt phụ (Multi-Template 3 góc)
             for (int i = 1; i < _capturedVectors.Count; i++)
             {
                 member.AddFaceVector(_capturedVectors[i]);
             }
 
-            // Ghi vào SQLite
             await _dbContext.Members.AddAsync(member);
             await _dbContext.SaveChangesAsync();
 
-            // Cập nhật ngay lập tức vào RAM Cache để hội viên có thể quẹt mặt điểm danh tức thì
             _attendanceCoordinator.UpdateMemberInCache(member);
-
-            // Đóng cửa sổ và báo thành công
             RequestClose?.Invoke(true);
         }
         catch (Exception ex)

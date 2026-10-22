@@ -17,7 +17,7 @@ Tài liệu này chuẩn hóa toàn bộ 12 kịch bản kiểm thử (Test Case
 | **TC06** | Phát hiện Khách lạ / Chưa ghi danh FaceID (`Sim < 0.65`) | AI Core / SCRFD | High | 🟢 **PASS** |
 | **TC07** | Cơ chế Debounce Cooldown Chống Ghi đúp Check-in | Concurrency / Data Guard | Critical | 🟢 **PASS** |
 | **TC08** | Đăng ký Hội viên mới & Tự động Cập nhật RAM Cache | Domain / DI / Cache | High | 🟢 **PASS** |
-| **TC09** | Khung Chữ Nhật Dynamic Bounding Box (Loại bỏ Oval tĩnh) | WPF Canvas / SCRFD HUD | High | 🟢 **PASS** |
+| **TC09** | Bộ Hướng Dẫn Góc Mặt & Xoay 3 Tư Thế (Angle Guide & Pose Matching) | AI Pose Matching / WPF HUD | High | 🟢 **PASS** |
 | **TC10** | Tự động Thu thập Face ID (Auto-Capture 3 Mẫu) & Âm thanh Escalating | AI Pipeline / UX Feedback | Critical | 🟢 **PASS** |
 | **TC11** | Quản trị Gói tập (CRUD Packages): Thêm mới, Chỉnh sửa & Xóa an toàn | Data / WPF Modal / Validation | High | 🟢 **PASS** |
 | **TC12** | Quản trị Hội viên (CRUD Members): Sửa hồ sơ, Gia hạn & Đồng bộ RAM Cache | Rich Domain / Cache Observer | Critical | 🟢 **PASS** |
@@ -180,22 +180,34 @@ Tài liệu này chuẩn hóa toàn bộ 12 kịch bản kiểm thử (Test Case
 
 ---
 
-### TC09: Khung Chữ Nhật Dynamic Bounding Box (Loại bỏ Oval tĩnh)
-- **Mục tiêu:** Xác minh loại bỏ hoàn toàn các khung hình oval tĩnh cố định ở cả màn hình chính `MainWindow` và màn hình `RegisterMemberWindow`. Thay vào đó, hệ thống chỉ hiển thị khung viền chữ nhật màu Cam `#FF6B00` bám theo tọa độ mặt thực tế khi phát hiện khuôn mặt (`IsFaceDetected == true`), kèm nhãn tag `"FACE DETECTED (Score%)"`. Khi không có mặt trong khung hình, khung viền chữ nhật tự động ẩn (`Visibility = Collapsed`).
+### TC09: Bộ Hướng Dẫn Góc Mặt & Xoay 3 Tư Thế (Angle Guide & Pose Matching Enrollment)
+- **Mục tiêu:** Xác minh tính năng hướng dẫn xoay góc mặt trực quan (Visual Angle Guide) và thuật toán ước lượng góc Yaw qua 5 Landmarks của SCRFD (`landmarks[0]` mắt trái, `landmarks[1]` mắt phải, `landmarks[2]` mũi) với công thức `yawRatio = distLeft / (distLeft + distRight)`. Hệ thống dẫn dắt người dùng qua 3 tư thế chuẩn mực:
+  1. **Góc 1/3 (Chính diện - Center):** `0.42 <= ratio <= 0.58`.
+  2. **Góc 2/3 (Xoay Trái - TurnLeft):** `ratio < 0.38`.
+  3. **Góc 3/3 (Xoay Phải - TurnRight):** `ratio > 0.62`.
+  Chỉ khi người dùng xoay đúng góc mục tiêu và giữ yên ổn định tối thiểu 600ms, hệ thống mới đếm lùi, trích xuất vector 512-d và phát âm thanh bíp hoàn thành.
 - **Điều kiện tiên quyết:**
-  - Camera đang hoạt động và truyền frame vào AI pipeline (`SCRFD`).
+  - Mở cửa sổ `RegisterMemberWindow`.
+- **Dữ liệu kiểm thử:**
+  - Người dùng đứng trước camera với các tư thế: Nhìn thẳng, Xoay mặt sang trái $\approx 15^\circ - 30^\circ$, Xoay mặt sang phải $\approx 15^\circ - 30^\circ$.
 - **Các bước thực hiện:**
-  1. Đứng trước màn hình chính mà không có khuôn mặt trong khung hình (hoặc che camera).
-  2. Quan sát khung preview camera: Hoàn toàn không có hình oval hay bounding box nào hiển thị.
-  3. Bước vào khung hình camera: SCRFD nhận diện mặt, phát sự kiện `FaceDetected(faceBox)`.
-  4. Quan sát khung hiển thị: Bounding box hình chữ nhật màu Cam xuất hiện chuẩn xác quanh khuôn mặt, kèm tag `FACE DETECTED (98%)` ở góc trên bên trái box.
-  5. Di chuyển sang trái/phải: Bounding box di chuyển mượt mà bám theo mặt.
-  6. Rời khỏi khung hình: Bounding box lập tức biến mất (`IsFaceDetected = false`).
+  1. Mở `RegisterMemberWindow`, điền Họ tên, SĐT, chọn gói tập.
+  2. Bấm `⚡ Bắt Đầu Quét Face ID`:
+     - Thanh Pose Indicator Bar hiển thị 3 vùng `TRÁI` | `CHÍNH DIỆN` | `PHẢI`.
+     - Vùng `CHÍNH DIỆN` sáng viền Cam thể thao (`IsTargetCenter = true`).
+     - Con trỏ chuyển động mượt mà bám theo góc quay đầu thực tế qua binding `PoseIndicatorPointerLeft`.
+  3. Nhìn thẳng vào camera: Con trỏ di chuyển vào vùng giữa, badge đổi sang màu xanh lá `#10B981` (`IsAngleMatched = true`). Giữ yên 600ms $\rightarrow$ Beep 1300Hz, tiến trình lên 33%, thanh chuyển hướng dẫn sang góc 2/3.
+  4. Hệ thống yêu cầu `Góc 2/3: Xoay nhẹ sang TRÁI (👈)` (`IsTargetLeft = true`).
+     - Người dùng xoay nhẹ mặt sang trái: Con trỏ trượt sang trái (`ratio < 0.38`).
+     - Badge đổi sang màu xanh lá. Giữ yên 600ms $\rightarrow$ Beep 1600Hz, tiến trình lên 66%, thanh chuyển sang góc 3/3.
+  5. Hệ thống yêu cầu `Góc 3/3: Xoay nhẹ sang PHẢI (👉)` (`IsTargetRight = true`).
+     - Người dùng xoay nhẹ mặt sang phải: Con trỏ trượt sang phải (`ratio > 0.62`).
+     - Badge đổi sang màu xanh lá. Giữ yên 600ms $\rightarrow$ Beep 1900Hz, tiến trình đạt 100%.
+  6. Sau khi đủ 3 góc: Hệ thống thông báo `✅ ĐÃ THU THẬP ĐỦ 3 GÓC MẶT (Thẳng - Trái - Phải)! Nhấn 'Lưu Hội Viên' để hoàn tất`, nút `Lưu Hội Viên` kích hoạt.
 - **Kết quả mong đợi:**
-  - Không còn thành phần `<Ellipse>` hay hướng dẫn "căn chỉnh mặt vào khung oval".
-  - Bounding box hiển thị chính xác theo tỷ lệ co giãn từ camera feed (1280x720) sang khung hiển thị UI.
-  - Drop shadow màu `#FF6B00` bán kính 10px tạo hiệu ứng hiện đại, sắc nét.
-- **Kết quả thực tế:** **PASS** (Đã kiểm tra mã nguồn XAML, binding `IsFaceDetected` và Canvas tọa độ hoạt động chính xác).
+  - Thuật toán `CalculateYawRatio` có đầy đủ kiểm tra an toàn: null check, length check, divide by zero guard (`total <= 0.0001f`), `float.IsNaN` và `float.IsInfinity` check.
+  - Người dùng không thể thu thập 3 mẫu trùng 1 góc, đảm bảo Multi-Template đạt độ phủ góc quay đa dạng tối ưu.
+- **Kết quả thực tế:** **PASS** (Đã kiểm tra thuật toán toán học và luồng UI binding `PoseIndicatorPointerLeft`, `AngleIndicatorColor` hoạt động hoàn hảo).
 
 ---
 

@@ -189,13 +189,16 @@
                     </Border>
 
                     <!-- Thanh Tiến Trình Auto-Capture & Preview Ảnh Mẫu -->
+                    <!-- Thanh Điều Khiển, Visual Angle Guide & Progress -->
                     <Grid Grid.Row="2">
                         <Grid.RowDefinitions>
                             <!-- 1. Nút Bắt Đầu Quét Face ID -->
                             <RowDefinition Height="Auto" />
-                            <!-- 2. Thanh ProgressBar (0/3 -> 3/3) -->
+                            <!-- 2. Bộ Hướng Dẫn Xoay Góc Mặt (Visual Angle Guide) -->
                             <RowDefinition Height="Auto" />
-                            <!-- 3. Ảnh Crop & Thông báo trạng thái -->
+                            <!-- 3. Thanh ProgressBar (0/3 -> 3/3) -->
+                            <RowDefinition Height="Auto" />
+                            <!-- 4. Ảnh Crop & Thông báo trạng thái -->
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
@@ -204,29 +207,139 @@
                                 Style="{StaticResource PrimaryBtn}"
                                 Command="{Binding StartCaptureCommand}"
                                 Content="{Binding StartCaptureButtonText}"
-                                Height="40"
+                                Height="38"
                                 FontSize="13"
                                 FontWeight="700"
-                                Margin="0,0,0,12" />
+                                Margin="0,0,0,10" />
 
-                        <!-- 2. Thanh ProgressBar tự động quét 3 mẫu Face ID (0/3 -> 1/3 -> 2/3 -> 3/3) -->
-                        <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <!-- 2. BỘ HƯỚNG DẪN XOAY GÓC MẶT (VISUAL ANGLE GUIDE) -->
+                        <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,0,0,10">
+                            <StackPanel>
+                                <!-- Header góc mục tiêu & badge trạng thái -->
+                                <Grid Margin="0,0,0,6">
+                                    <TextBlock Text="{Binding CurrentTargetAngleText}" FontSize="12" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                    <Border HorizontalAlignment="Right" CornerRadius="10" Padding="8,2">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#FFF7ED" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAngleMatched}" Value="True">
+                                                        <Setter Property="Background" Value="#D1FAE5" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="10" FontWeight="700">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="CẦN XOAY ĐÚNG GÓC" />
+                                                    <Setter Property="Foreground" Value="#EA580C" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsAngleMatched}" Value="True">
+                                                            <Setter Property="Text" Value="✅ ĐÚNG GÓC (GIỮ YÊN)" />
+                                                            <Setter Property="Foreground" Value="#047857" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Thanh Pose Indicator 3 Vùng (Trái 38% - Thẳng 24% - Phải 38%) -->
+                                <Grid Height="30">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="38*" />
+                                            <ColumnDefinition Width="24*" />
+                                            <ColumnDefinition Width="38*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Vùng Trái -->
+                                        <Border Grid.Column="0" Background="#F3F4F6" CornerRadius="15,0,0,15" Margin="0,0,1,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsTargetLeft}" Value="True">
+                                                            <Setter Property="Background" Value="#FFEDD5" />
+                                                            <Setter Property="BorderBrush" Value="#FB923C" />
+                                                            <Setter Property="BorderThickness" Value="1.5" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="👈 TRÁI" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+
+                                        <!-- Vùng Chính diện -->
+                                        <Border Grid.Column="1" Background="#F3F4F6" Margin="1,0,1,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsTargetCenter}" Value="True">
+                                                            <Setter Property="Background" Value="#FFEDD5" />
+                                                            <Setter Property="BorderBrush" Value="#FB923C" />
+                                                            <Setter Property="BorderThickness" Value="1.5" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="THẲNG" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+
+                                        <!-- Vùng Phải -->
+                                        <Border Grid.Column="2" Background="#F3F4F6" CornerRadius="0,15,15,0" Margin="1,0,0,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsTargetRight}" Value="True">
+                                                            <Setter Property="Background" Value="#FFEDD5" />
+                                                            <Setter Property="BorderBrush" Value="#FB923C" />
+                                                            <Setter Property="BorderThickness" Value="1.5" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="PHẢI 👉" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Con trỏ Real-time di chuyển theo tỉ lệ góc xoay yaw -->
+                                    <Canvas IsHitTestVisible="False">
+                                        <Border Canvas.Left="{Binding PoseIndicatorPointerLeft}"
+                                                Canvas.Top="3"
+                                                Width="24" Height="24"
+                                                CornerRadius="12"
+                                                Background="{Binding AngleIndicatorColor}"
+                                                BorderBrush="#FFFFFF" BorderThickness="2">
+                                            <Border.Effect>
+                                                <DropShadowEffect Color="#000000" BlurRadius="4" Opacity="0.3" ShadowDepth="1" />
+                                            </Border.Effect>
+                                            <Ellipse Width="6" Height="6" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                    </Canvas>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- 3. Thanh ProgressBar tự động quét 3 mẫu Face ID (0/3 -> 1/3 -> 2/3 -> 3/3) -->
+                        <Grid Grid.Row="2" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <Grid Margin="0,0,0,5">
-                                    <TextBlock Text="Tiến trình tự động quét Face ID (3 mẫu):" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" />
-                                    <TextBlock Text="{Binding ProgressText}" FontSize="12" FontWeight="800" Foreground="{StaticResource BrushPrimaryOrange}" HorizontalAlignment="Right" />
+                                <Grid Margin="0,0,0,4">
+                                    <TextBlock Text="Tiến trình hoàn thành Face ID:" FontSize="11" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" />
+                                    <TextBlock Text="{Binding ProgressText}" FontSize="11" FontWeight="800" Foreground="{StaticResource BrushPrimaryOrange}" HorizontalAlignment="Right" />
                                 </Grid>
-                                <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="8" Foreground="{StaticResource BrushPrimaryOrange}" Background="#E5E7EB" BorderThickness="0" />
+                                <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="7" Foreground="{StaticResource BrushPrimaryOrange}" Background="#E5E7EB" BorderThickness="0" />
                             </StackPanel>
-                            <Button Grid.Column="1" Style="{StaticResource SecondaryBtn}" Command="{Binding ResetCaptureCommand}" Content="Quét lại" Height="30" Padding="8,0" Margin="10,10,0,0" VerticalAlignment="Bottom" />
+                            <Button Grid.Column="1" Style="{StaticResource SecondaryBtn}" Command="{Binding ResetCaptureCommand}" Content="Quét lại" Height="28" Padding="8,0" Margin="10,8,0,0" VerticalAlignment="Bottom" />
                         </Grid>
 
-                        <!-- 3. Ảnh Crop & Thông báo trạng thái -->
-                        <Grid Grid.Row="2">
+                        <!-- 4. Ảnh Crop & Thông báo trạng thái -->
+                        <Grid Grid.Row="3">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="64" />
                                 <ColumnDefinition Width="*" />
