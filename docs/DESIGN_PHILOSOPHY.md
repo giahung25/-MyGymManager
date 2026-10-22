@@ -1,6 +1,6 @@
-# 5 TRIẾT LÝ THIẾT KẾ HƯỚNG ĐỐI TƯỢNG (IN4211) — ÁP DỤNG VÀO PHUCGYM DESKTOP
+# 5 TRIẾT LÝ THIẾT KẾ HƯỚNG ĐỐI TƯỢNG (IN4211) — ÁP DỤNG VÀO MYGYMMANAGER DESKTOP
 
-Tài liệu này chuẩn hóa toàn bộ các nguyên tắc kiến trúc và mẫu thiết kế từ môn học **Phát triển phần mềm hướng đối tượng (IN4211 - ThS. Nguyễn Tuấn Kiệt)** để áp dụng trực tiếp vào dự án **PhucGym Desktop (.NET 10 WPF Standalone)**.
+Tài liệu này chuẩn hóa toàn bộ các nguyên tắc kiến trúc và mẫu thiết kế từ môn học **Phát triển phần mềm hướng đối tượng (IN4211 - ThS. Nguyễn Tuấn Kiệt)** để áp dụng trực tiếp vào dự án **MyGymManager Desktop (.NET 10 WPF Standalone)**.
 
 ---
 
@@ -11,9 +11,9 @@ Tài liệu này chuẩn hóa toàn bộ các nguyên tắc kiến trúc và m�
 - Entity phải tự chịu trách nhiệm bảo vệ tính đúng đắn dữ liệu (Invariants) của chính nó thông qua đóng gói (`private set`).
 - Khởi tạo thông qua Factory Method tĩnh (`Member.Create(...)`).
 
-### 1.2 Minh họa code C# trong PhucGym
+### 1.2 Minh họa code C# trong MyGymManager
 ```csharp
-namespace PhucGym.Core.Entities;
+namespace MyGymManager.Core.Entities;
 
 public class Member
 {
@@ -67,7 +67,7 @@ public class Member
 ### 2.1 Nguyên lý
 Mỗi class chỉ có một trách nhiệm duy nhất và chỉ có một lý do duy nhất để thay đổi. Tách rời triệt để luồng đọc Camera, luồng suy luận AI và luồng xử lý CSDL.
 
-### 2.2 Phân rã trách nhiệm trong PhucGym
+### 2.2 Phân rã trách nhiệm trong MyGymManager
 | Lớp / Dịch vụ | Trách nhiệm duy nhất (Single Responsibility) | Không được làm gì |
 |---|---|---|
 | `CameraService` | Đọc video 30-60 FPS từ RTSP/USB và bắn ra Frame ảnh thô | Không được gọi AI, không được ghi CSDL |
@@ -85,7 +85,7 @@ Mỗi class chỉ có một trách nhiệm duy nhất và chỉ có một lý do
 
 ### 3.2 Minh họa Interface hoán đổi phần cứng
 ```csharp
-namespace PhucGym.Core.Interfaces;
+namespace MyGymManager.Core.Interfaces;
 
 public interface ICameraService : IDisposable
 {
@@ -168,7 +168,7 @@ PhucGym.App/
 ├── Infrastructure/                    # [CHI TIẾT KỸ THUẬT - NGOẠI VI]
 │   ├── Camera/                        # OpenCvCameraService (OpenCvSharp4)
 │   ├── AI/                            # OnnxFaceEngine (Microsoft.ML.OnnxRuntime)
-│   └── Data/                          # PhucGymDbContext (SQLite EF Core 10)
+│   └── Data/                          # MyGymDbContext (SQLite EF Core 10)
 ├── Services/                          # [USE CASES & COORDINATORS]
 │   ├── AttendanceCoordinator.cs       # Điều phối quẹt thẻ & Event Observer
 │   └── MemberManagementService.cs     # Đăng ký, gia hạn gói tập
@@ -178,4 +178,4 @@ PhucGym.App/
 ```
 
 ---
-*Tài liệu này là kim chỉ nam bắt buộc tuân thủ cho toàn bộ các bước Vibecoding của dự án PhucGym.*
+*Tài liệu này là kim chỉ nam bắt buộc tuân thủ cho toàn bộ các bước Vibecoding của dự án MyGymManager.*

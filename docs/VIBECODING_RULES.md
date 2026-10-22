@@ -1,4 +1,4 @@
-# NGUYÊN TẮC VIBECODING — PHUCGYM DESKTOP (.NET 10)
+# NGUYÊN TẮC VIBECODING — MYGYMMANAGER DESKTOP (.NET 10)
 
 Tài liệu này định hình cách thức làm việc giữa **Bạn (Developer / Product Owner)** và **Hermes AI Agent** trong suốt quá trình phát triển dự án.
 

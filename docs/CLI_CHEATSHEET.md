@@ -1,4 +1,4 @@
-# SỔ TAY DOTNET CLI — PHUCGYM DESKTOP
+# SỔ TAY DOTNET CLI — MYGYMMANAGER DESKTOP
 
 Tất cả các câu lệnh thao tác một chạm trên Terminal PowerShell / Linux SSH.
 
@@ -43,7 +43,7 @@ dotnet tool install --global dotnet-ef
 # Tạo migration mới khi thay đổi model
 dotnet ef migrations add InitialCreate --project PhucGym.App
 
-# Cập nhật CSDL phuc_gym.db
+# Cập nhật CSDL mygym_manager.db
 dotnet ef database update --project PhucGym.App
 ```
 
@@ -54,4 +54,4 @@ dotnet ef database update --project PhucGym.App
 # Xuất bản file .exe độc lập hoàn toàn (Self-contained, không cần cài .NET runtime trên máy đích)
 dotnet publish PhucGym.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "D:\PhucGymDesktop\dist"
 ```
-File `.exe` thành phẩm sẽ xuất hiện tại `D:\PhucGymDesktop\dist\PhucGym.App.exe`!
+File `.exe` thành phẩm sẽ xuất hiện tại `D:\PhucGymDesktop\dist\MyGymManager.App.exe`!

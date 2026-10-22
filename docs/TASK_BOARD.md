@@ -1,11 +1,11 @@
-# TASK BOARD — TIẾN ĐỘ PHÁT TRIỂN PHUCGYM DESKTOP
+# TASK BOARD — TIẾN ĐỘ PHÁT TRIỂN MYGYMMANAGER DESKTOP
 
 Bảng quản lý công việc theo mô hình Agile / Vibecoding từng bước (Phase-by-Phase), đảm bảo mỗi bước đều có artifact chạy được thực tế.
 
 ---
 
 ## 📌 Phase 1: Nền tảng & CSDL Local (Foundation & Data)
-- [x] **Task 1.1:** Khởi tạo Solution .NET 10 WPF Standalone (`PhucGym.slnx` & `PhucGym.App`).
+- [x] **Task 1.1:** Khởi tạo Solution .NET 10 WPF Standalone (`MyGymManager.slnx` & `PhucGym.App`).
 - [x] **Task 1.2:** Cài đặt bộ NuGet packages (OpenCvSharp4, OnnxRuntime, EF Core SQLite, Wpf.Ui).
 - [x] **Task 1.3:** Sao chép bộ weights ONNX InsightFace vào thư mục `models/buffalo_l/`.
 - [ ] **Task 1.4:** Thiết lập Entity Framework Core SQLite `AppDbContext` + Entity Models (`Member`, `Package`, `CheckInLog`).

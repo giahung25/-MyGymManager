@@ -1,11 +1,11 @@
-# KIẾN TRÚC HỆ THỐNG — PHUCGYM DESKTOP (.NET 10 WPF STANDALONE)
+# KIẾN TRÚC HỆ THỐNG — MYGYMMANAGER DESKTOP (.NET 10 WPF STANDALONE)
 
 ## 1. MÔ HÌNH TỔNG THỂ
 Ứng dụng vận hành độc lập theo mô hình **Standalone Monolith (All-in-One)** trên 1 máy tính lễ tân duy nhất, loại bỏ hoàn toàn tầng trung gian Web/Server/Mạng.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                            PHUCGYM DESKTOP (.NET 10)                         │
+│                          MYGYMMANAGER DESKTOP (.NET 10)                       │
 │                                                                              │
 │  ┌───────────────────────┐                    ┌───────────────────────────┐  │
 │  │   CameraService       │                    │   FaceRecognitionService  │  │
@@ -25,7 +25,7 @@
 │                                      ▼                                       │
 │                       ┌─────────────────────────────┐                        │
 │                       │   Local SQLite (EF Core 10) │                        │
-│                       │   phuc_gym.db               │                        │
+│                       │   mygym_manager.db          │                        │
 │                       └─────────────────────────────┘                        │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```

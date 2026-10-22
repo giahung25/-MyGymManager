@@ -2,7 +2,7 @@
 using System.Data;
 using System.Windows;
 
-namespace PhucGym.App;
+namespace MyGymManager.App;
 
 /// <summary>
 /// Interaction logic for App.xaml

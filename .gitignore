@@ -485,3 +485,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+
+# AI and Machine Learning model weights (exceeds GitHub file size limit)
+*.onnx
+models/**/*.onnx
+!models/**/.gitkeep
