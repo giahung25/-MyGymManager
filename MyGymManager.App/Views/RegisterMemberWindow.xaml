@@ -191,12 +191,26 @@
                     <!-- Thanh Tiến Trình Auto-Capture & Preview Ảnh Mẫu -->
                     <Grid Grid.Row="2">
                         <Grid.RowDefinitions>
+                            <!-- 1. Nút Bắt Đầu Quét Face ID -->
                             <RowDefinition Height="Auto" />
+                            <!-- 2. Thanh ProgressBar (0/3 -> 3/3) -->
+                            <RowDefinition Height="Auto" />
+                            <!-- 3. Ảnh Crop & Thông báo trạng thái -->
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <!-- Thanh ProgressBar tự động quét 3 mẫu Face ID (0/3 -> 1/3 -> 2/3 -> 3/3) -->
-                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <!-- 1. Nút Bắt Đầu Quét Face ID -->
+                        <Button Grid.Row="0"
+                                Style="{StaticResource PrimaryBtn}"
+                                Command="{Binding StartCaptureCommand}"
+                                Content="{Binding StartCaptureButtonText}"
+                                Height="40"
+                                FontSize="13"
+                                FontWeight="700"
+                                Margin="0,0,0,12" />
+
+                        <!-- 2. Thanh ProgressBar tự động quét 3 mẫu Face ID (0/3 -> 1/3 -> 2/3 -> 3/3) -->
+                        <Grid Grid.Row="1" Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -208,11 +222,11 @@
                                 </Grid>
                                 <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="8" Foreground="{StaticResource BrushPrimaryOrange}" Background="#E5E7EB" BorderThickness="0" />
                             </StackPanel>
-                            <Button Grid.Column="1" Style="{StaticResource SecondaryBtn}" Command="{Binding ResetCaptureCommand}" Content="Quét lại từ đầu" Height="30" Padding="8,0" Margin="12,12,0,0" VerticalAlignment="Bottom" />
+                            <Button Grid.Column="1" Style="{StaticResource SecondaryBtn}" Command="{Binding ResetCaptureCommand}" Content="Quét lại" Height="30" Padding="8,0" Margin="10,10,0,0" VerticalAlignment="Bottom" />
                         </Grid>
 
-                        <!-- Ảnh Crop & Thông báo trạng thái -->
-                        <Grid Grid.Row="1">
+                        <!-- 3. Ảnh Crop & Thông báo trạng thái -->
+                        <Grid Grid.Row="2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="64" />
                                 <ColumnDefinition Width="*" />
@@ -242,7 +256,7 @@
                                 <TextBlock Text="Hệ thống tự động phát hiện mặt đạt chuẩn (Confidence &gt; 70%) và chụp 3 mẫu cách nhau 1 giây." FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,3,0,0" TextWrapping="Wrap" />
                             </StackPanel>
                         </Grid>
-                    </Grid>
+                        </Grid>
                 </Grid>
             </Border>
         </Grid>

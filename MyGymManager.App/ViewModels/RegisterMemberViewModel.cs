@@ -39,9 +39,10 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
     private Package? _selectedPackage;
     private BitmapSource? _cameraPreview;
     private BitmapSource? _capturedFaceImage;
-    private string _statusMessage = "Đưa mặt vào khung camera để tự động quét 3 mẫu Face ID...";
+    private string _statusMessage = "Vui lòng điền thông tin hội viên và bấm 'Bắt đầu quét Face ID'";
     private Brush _statusColor = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // Xám
     private string _errorMessage = string.Empty;
+    private bool _isCapturingActive = false;
     private bool _isBusy = false;
     private int _isRenderingUi = 0;
     private int _isProcessingAutoCapture = 0;
@@ -145,6 +146,22 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             }
         }
     }
+    public bool IsCapturingActive
+    {
+        get => _isCapturingActive;
+        set
+        {
+            if (SetField(ref _isCapturingActive, value))
+            {
+                OnPropertyChanged(nameof(StartCaptureButtonText));
+            }
+        }
+    }
+
+    public string StartCaptureButtonText => IsCapturingActive
+        ? "🔄 Đang Quét... (Bấm để quét lại)"
+        : "⚡ Bắt Đầu Quét Face ID";
+
 
     // Bounding Box Properties
     public bool IsFaceDetected
@@ -209,6 +226,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
 
     public ICommand ResetCaptureCommand { get; }
     public ICommand SaveMemberCommand { get; }
+    public ICommand StartCaptureCommand { get; }
     public ICommand CancelCommand { get; }
 
     public RegisterMemberViewModel(
@@ -225,6 +243,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         _audioService = audioService ?? new AudioNotificationService();
 
         ResetCaptureCommand = new RelayCommand(OnResetCapture);
+        StartCaptureCommand = new RelayCommand(async () => await OnStartCaptureAsync());
         SaveMemberCommand = new RelayCommand(async () => await OnSaveMemberAsync());
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
 
@@ -311,7 +330,8 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         }
 
         // 2. TỰ ĐỘNG THU THẬP FACE ID (Auto Capture Engine)
-        if (!IsAutoCaptureComplete && Interlocked.CompareExchange(ref _isProcessingAutoCapture, 1, 0) == 0)
+        // 2. TỰ ĐỘNG THU THẬP FACE ID (Chỉ chạy khi IsCapturingActive == true và chưa đủ 3 mẫu)
+        if (IsCapturingActive && !IsAutoCaptureComplete && Interlocked.CompareExchange(ref _isProcessingAutoCapture, 1, 0) == 0)
         {
             var aiFrame = frame.Clone();
             _ = Task.Run(async () =>
@@ -347,10 +367,10 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             Application.Current?.Dispatcher.InvokeAsync(() =>
             {
                 IsFaceDetected = false;
-                if (!IsAutoCaptureComplete)
+                if (IsCapturingActive && !IsAutoCaptureComplete)
                 {
-                    StatusMessage = "Đưa mặt vào khung camera để tự động quét 3 mẫu Face ID...";
-                    StatusColor = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+                    StatusMessage = "Đang tìm khuôn mặt... Vui lòng nhìn vào camera.";
+                    StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));
                 }
             });
             return;
@@ -429,7 +449,8 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
                 }
                 else
                 {
-                    StatusMessage = "✅ ĐÃ THU THẬP ĐỦ 3/3 MẪU FACE ID! Nhấn 'Lưu Hội Viên' để hoàn tất.";
+                    IsCapturingActive = false; // TẮT TỰ ĐỘNG CHỤP KHI ĐÃ ĐỦ 3 MẪU
+                    StatusMessage = "✅ ĐÃ THU THẬP ĐỦ 3 MẪU FACE ID! Nhấn 'Lưu Hội Viên' để hoàn tất.";
                     StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Xanh lá
                     OnPropertyChanged(nameof(IsAutoCaptureComplete));
                     OnPropertyChanged(nameof(CanSave));
@@ -457,6 +478,56 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         _lastSampleTime = DateTime.MinValue;
         StatusMessage = "Đã đặt lại. Đưa mặt vào khung camera để tự động quét lại từ đầu...";
         StatusColor = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+
+        OnPropertyChanged(nameof(CapturedAngleCount));
+        OnPropertyChanged(nameof(HasFaceVector));
+        OnPropertyChanged(nameof(IsAutoCaptureComplete));
+        OnPropertyChanged(nameof(CanSave));
+    }
+
+    /// <summary>
+    /// Kiểm tra tính hợp lệ thông tin hội viên và kích hoạt quy trình quét tự động Face ID.
+    /// </summary>
+    private async Task OnStartCaptureAsync()
+    {
+        ErrorMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(FullName))
+        {
+            ErrorMessage = "Vui lòng nhập Họ và Tên hội viên trước khi quét Face ID.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(PhoneNumber))
+        {
+            ErrorMessage = "Vui lòng nhập Số điện thoại hội viên trước khi quét Face ID.";
+            return;
+        }
+
+        if (SelectedPackage == null)
+        {
+            ErrorMessage = "Vui lòng chọn Gói tập cho hội viên.";
+            return;
+        }
+
+        // Kiểm tra số điện thoại có bị trùng không
+        var isTaken = await _dbContext.Members.AnyAsync(m => m.PhoneNumber == PhoneNumber.Trim());
+        if (isTaken)
+        {
+            ErrorMessage = "Số điện thoại này đã được đăng ký cho một hội viên khác.";
+            return;
+        }
+
+        // Đặt lại số mẫu và kích hoạt chế độ tự động chụp
+        _capturedVectors.Clear();
+        CapturedFaceImage = null;
+        ProgressValue = 0;
+        ProgressText = "0/3 mẫu";
+        _lastSampleTime = DateTime.MinValue;
+
+        IsCapturingActive = true;
+        StatusMessage = "Đang quét... Vui lòng nhìn thẳng vào camera để thu thập 3 mẫu Face ID.";
+        StatusColor = new SolidColorBrush(Color.FromRgb(255, 107, 0)); // Cam
 
         OnPropertyChanged(nameof(CapturedAngleCount));
         OnPropertyChanged(nameof(HasFaceVector));
