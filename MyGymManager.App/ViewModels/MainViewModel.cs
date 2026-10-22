@@ -33,12 +33,13 @@ public record TodayLogItem(
     bool IsValid);
 
 /// <summary>
-/// ViewModel chính của màn hình Điểm danh (Attendance Dashboard).
+/// ViewModel chính của màn hình Điểm danh & Quản trị phòng Gym (Phuc Gym Desktop).
 /// Quản lý Live Camera Feed, thông tin hội viên nhận diện thời gian thực,
-/// danh sách lịch sử điểm danh trong ngày và thông báo trạng thái.
+/// danh sách lịch sử điểm danh, danh mục hội viên và gói tập gym.
 /// </summary>
 public class MainViewModel : INotifyPropertyChanged, IDisposable
 {
+    private int _selectedTabIndex = 1; // Mặc định tab 1: Cổng điểm danh
     private BitmapSource? _cameraFeed;
     private Member? _currentMember;
     private string _statusMessage = "Hệ thống sẵn sàng đón hội viên";
@@ -59,6 +60,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private bool _isCameraRunning = true;
     private bool _isInitialized = false;
 
+    // Manual checkin
+    private string _manualPhoneNumber = string.Empty;
+    private string _manualCheckInStatus = string.Empty;
+
+    // Search filters
+    private string _memberSearchText = string.Empty;
+    private string _packageSearchText = string.Empty;
+
     private readonly DispatcherTimer _clockTimer;
     private readonly ICameraService? _cameraService;
     private readonly AttendanceCoordinator? _attendanceCoordinator;
@@ -68,9 +77,33 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
+    /// Index tab hiện tại được điều khiển bởi Sidebar Menu:
+    /// 0 = Bảng điều khiển (Dashboard)
+    /// 1 = Cổng điểm danh (Attendance Gate)
+    /// 2 = Lịch sử điểm danh (Logs)
+    /// 3 = Hội viên (Members)
+    /// 4 = Gói tập Gym (Packages)
+    /// </summary>
+    public int SelectedTabIndex
+    {
+        get => _selectedTabIndex;
+        set => SetField(ref _selectedTabIndex, value);
+    }
+
+    /// <summary>
     /// Danh sách nhật ký điểm danh trong ngày (hỗ trợ DataBinding ObservableCollection).
     /// </summary>
     public ObservableCollection<TodayLogItem> TodayLogs { get; } = new();
+
+    /// <summary>
+    /// Danh sách toàn bộ hội viên nạp từ SQLite.
+    /// </summary>
+    public ObservableCollection<Member> MembersList { get; } = new();
+
+    /// <summary>
+    /// Danh sách toàn bộ gói tập nạp từ SQLite.
+    /// </summary>
+    public ObservableCollection<Package> PackagesList { get; } = new();
 
     /// <summary>
     /// Nguồn ảnh Camera trực tiếp cập nhật từ OpenCvSharp Mat qua WriteableBitmap/BitmapSource.
@@ -197,8 +230,48 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set => SetField(ref _isCameraRunning, value);
     }
 
+    public string ManualPhoneNumber
+    {
+        get => _manualPhoneNumber;
+        set => SetField(ref _manualPhoneNumber, value);
+    }
+
+    public string ManualCheckInStatus
+    {
+        get => _manualCheckInStatus;
+        set => SetField(ref _manualCheckInStatus, value);
+    }
+
+    public string MemberSearchText
+    {
+        get => _memberSearchText;
+        set
+        {
+            if (SetField(ref _memberSearchText, value))
+            {
+                _ = FilterMembersAsync();
+            }
+        }
+    }
+
+    public string PackageSearchText
+    {
+        get => _packageSearchText;
+        set
+        {
+            if (SetField(ref _packageSearchText, value))
+            {
+                _ = FilterPackagesAsync();
+            }
+        }
+    }
+
     public ICommand RegisterNewMemberCommand { get; }
     public ICommand ToggleCameraCommand { get; }
+    public ICommand ManualCheckInCommand { get; }
+    public ICommand RefreshMembersCommand { get; }
+    public ICommand RefreshPackagesCommand { get; }
+    public ICommand NavigateTabCommand { get; }
 
     /// <summary>
     /// Constructor DI chính nhận các service được inject từ container.
@@ -214,6 +287,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         RegisterNewMemberCommand = new RelayCommand(OnRegisterNewMember);
         ToggleCameraCommand = new RelayCommand(async () => await ToggleCameraAsync());
+        ManualCheckInCommand = new RelayCommand(async () => await OnManualCheckInAsync());
+        RefreshMembersCommand = new RelayCommand(async () => await LoadMembersAsync());
+        RefreshPackagesCommand = new RelayCommand(async () => await LoadPackagesAsync());
+        NavigateTabCommand = new RelayCommand<int>(tabIndex => SelectedTabIndex = tabIndex);
 
         // Lắng nghe sự kiện từ CameraService
         if (_cameraService != null)
@@ -255,6 +332,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             // Tải nhật ký hôm nay từ SQLite
             await LoadTodayLogsAsync();
 
+            // Tải danh sách hội viên và gói tập
+            await LoadMembersAsync();
+            await LoadPackagesAsync();
+
             if (_attendanceCoordinator != null)
             {
                 StatusMessage = $"Hệ thống sẵn sàng đón hội viên ({_attendanceCoordinator.CachedMembersCount} hội viên trong RAM)";
@@ -262,7 +343,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[MainViewModel] Lỗi nạp nhật ký ban đầu: {ex.Message}");
+            Debug.WriteLine($"[MainViewModel] Lỗi nạp dữ liệu ban đầu: {ex.Message}");
         }
     }
 
@@ -368,6 +449,59 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
+    /// Điểm danh thủ công qua Số điện thoại.
+    /// </summary>
+    private async Task OnManualCheckInAsync()
+    {
+        if (_dbContext == null || string.IsNullOrWhiteSpace(ManualPhoneNumber))
+        {
+            ManualCheckInStatus = "Vui lòng nhập số điện thoại.";
+            return;
+        }
+
+        try
+        {
+            var phone = ManualPhoneNumber.Trim();
+            var member = await _dbContext.Members
+                .Include(m => m.Package)
+                .FirstOrDefaultAsync(m => m.PhoneNumber == phone);
+
+            if (member == null)
+            {
+                ManualCheckInStatus = "❌ Không tìm thấy hội viên với số điện thoại này.";
+                return;
+            }
+
+            bool isExpired = member.IsExpired();
+            var log = CheckInLog.Create(member.Id, 1.0f);
+            await _dbContext.CheckInLogs.AddAsync(log);
+            await _dbContext.SaveChangesAsync();
+
+            // Cập nhật lên UI
+            var logItem = new TodayLogItem(
+                CheckInTime: DateTime.Now.ToString("HH:mm:ss"),
+                FullName: member.FullName,
+                PhoneNumber: member.PhoneNumber,
+                PackageName: member.Package?.Name ?? "Gói tập",
+                Confidence: "100% (Thủ công)",
+                Status: isExpired ? "Hết hạn" : "Thành công",
+                IsValid: !isExpired);
+
+            TodayLogs.Insert(0, logItem);
+            TodayLogsCountText = $"{TodayLogs.Count} lượt";
+            ManualCheckInStatus = isExpired 
+                ? $"⚠️ Điểm danh thành công nhưng THẺ ĐÃ HẾT HẠN ({member.FullName})"
+                : $"✅ Điểm danh thủ công thành công: {member.FullName}";
+
+            ManualPhoneNumber = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            ManualCheckInStatus = $"Lỗi: {ex.Message}";
+        }
+    }
+
+    /// <summary>
     /// Nạp danh sách nhật ký check-in hôm nay từ SQLite.
     /// </summary>
     public async Task LoadTodayLogsAsync()
@@ -413,6 +547,138 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
+    /// Nạp danh sách hội viên từ SQLite.
+    /// </summary>
+    public async Task LoadMembersAsync()
+    {
+        if (_dbContext == null) return;
+
+        try
+        {
+            var members = await _dbContext.Members
+                .AsNoTracking()
+                .Include(m => m.Package)
+                .OrderByDescending(m => m.CreatedAt)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                MembersList.Clear();
+                foreach (var m in members)
+                {
+                    MembersList.Add(m);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MainViewModel] Lỗi load hội viên: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Lọc danh sách hội viên theo từ khóa tìm kiếm.
+    /// </summary>
+    private async Task FilterMembersAsync()
+    {
+        if (_dbContext == null) return;
+
+        try
+        {
+            var query = _dbContext.Members
+                .AsNoTracking()
+                .Include(m => m.Package)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(MemberSearchText))
+            {
+                var kw = MemberSearchText.Trim().ToLower();
+                query = query.Where(m => m.FullName.ToLower().Contains(kw) || m.PhoneNumber.Contains(kw));
+            }
+
+            var results = await query.OrderByDescending(m => m.CreatedAt).ToListAsync();
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                MembersList.Clear();
+                foreach (var m in results)
+                {
+                    MembersList.Add(m);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MainViewModel] Lỗi lọc hội viên: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Nạp danh sách gói tập từ SQLite.
+    /// </summary>
+    public async Task LoadPackagesAsync()
+    {
+        if (_dbContext == null) return;
+
+        try
+        {
+            var packages = await _dbContext.Packages
+                .AsNoTracking()
+                .OrderBy(p => p.DurationDays)
+                .ToListAsync()
+                .ConfigureAwait(false);
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                PackagesList.Clear();
+                foreach (var p in packages)
+                {
+                    PackagesList.Add(p);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MainViewModel] Lỗi load gói tập: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Lọc gói tập theo từ khóa tìm kiếm.
+    /// </summary>
+    private async Task FilterPackagesAsync()
+    {
+        if (_dbContext == null) return;
+
+        try
+        {
+            var query = _dbContext.Packages.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(PackageSearchText))
+            {
+                var kw = PackageSearchText.Trim().ToLower();
+                query = query.Where(p => p.Name.ToLower().Contains(kw));
+            }
+
+            var results = await query.OrderBy(p => p.DurationDays).ToListAsync();
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                PackagesList.Clear();
+                foreach (var p in results)
+                {
+                    PackagesList.Add(p);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MainViewModel] Lỗi lọc gói tập: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Bật/Tắt stream camera thủ công.
     /// </summary>
     private async Task ToggleCameraAsync()
@@ -441,7 +707,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         MessageBox.Show(
             "Tính năng 'Đăng ký Hội viên mới' đang được mở rộng.\nBạn có thể chụp 3 góc mặt (Multi-Template FaceID) để ghi danh.",
-            "MyGymManager — Đăng ký Hội viên",
+            "Phuc Gym — Đăng ký Hội viên",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }

@@ -3,60 +3,72 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MyGymManager.App"
         xmlns:vm="clr-namespace:MyGymManager.App.ViewModels"
         mc:Ignorable="d"
-        Title="MyGymManager — Hệ thống Điểm danh &amp; Quản lý Phòng Gym Standalone (.NET 10)"
-        Height="840" Width="1380"
-        MinHeight="720" MinWidth="1100"
+        Title="Phuc Gym — Smart Attendance &amp; Access Management System"
+        Height="880" Width="1440"
+        MinWidth="1150" MinHeight="720"
         WindowStartupLocation="CenterScreen"
-        Background="#F8F9FA"
-        FontFamily="Segoe UI, Inter, Roboto, Arial"
-        d:DataContext="{d:DesignInstance vm:MainViewModel}">
+        FontFamily="Segoe UI, Inter, Arial"
+        Background="#F8F9FA">
 
     <Window.Resources>
-        <!-- Sport Orange & Clean Palette -->
-        <Color x:Key="PrimaryOrangeColor">#FF6B00</Color>
-        <Color x:Key="PrimaryOrangeHoverColor">#E05D00</Color>
-        <Color x:Key="SoftOrangeBgColor">#FFF3E6</Color>
-        <Color x:Key="BorderLightColor">#E5E7EB</Color>
-        <Color x:Key="TextDarkColor">#111827</Color>
-        <Color x:Key="TextMutedColor">#6B7280</Color>
+        <!-- Palette Colors -->
+        <Color x:Key="ColorPrimaryOrange">#FF6B00</Color>
+        <Color x:Key="ColorPrimaryOrangeHover">#E65F00</Color>
+        <Color x:Key="ColorBgPrimary">#F8F9FA</Color>
+        <Color x:Key="ColorCardBg">#FFFFFF</Color>
+        <Color x:Key="ColorBorder">#E5E7EB</Color>
+        <Color x:Key="ColorTextPrimary">#111827</Color>
+        <Color x:Key="ColorTextSecondary">#4B5563</Color>
+        <Color x:Key="ColorTextMuted">#9CA3AF</Color>
 
-        <SolidColorBrush x:Key="PrimaryOrangeBrush" Color="{StaticResource PrimaryOrangeColor}" />
-        <SolidColorBrush x:Key="PrimaryOrangeHoverBrush" Color="{StaticResource PrimaryOrangeHoverColor}" />
-        <SolidColorBrush x:Key="SoftOrangeBgBrush" Color="{StaticResource SoftOrangeBgColor}" />
-        <SolidColorBrush x:Key="BorderLightBrush" Color="{StaticResource BorderLightColor}" />
-        <SolidColorBrush x:Key="TextDarkBrush" Color="{StaticResource TextDarkColor}" />
-        <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
+        <SolidColorBrush x:Key="BrushPrimaryOrange" Color="{StaticResource ColorPrimaryOrange}" />
+        <SolidColorBrush x:Key="BrushPrimaryOrangeHover" Color="{StaticResource ColorPrimaryOrangeHover}" />
+        <SolidColorBrush x:Key="BrushPrimaryOrangeLight" Color="#FFF7ED" />
+        <SolidColorBrush x:Key="BrushBgPrimary" Color="{StaticResource ColorBgPrimary}" />
+        <SolidColorBrush x:Key="BrushCardBg" Color="{StaticResource ColorCardBg}" />
+        <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource ColorBorder}" />
+        <SolidColorBrush x:Key="BrushTextPrimary" Color="{StaticResource ColorTextPrimary}" />
+        <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}" />
+        <SolidColorBrush x:Key="BrushTextMuted" Color="{StaticResource ColorTextMuted}" />
 
-        <!-- Nút Cam thể thao phong cách Fluent -->
-        <Style x:Key="SportOrangeButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PrimaryOrangeBrush}" />
+        <!-- Card Style with 12px CornerRadius -->
+        <Style x:Key="ModernCard" TargetType="Border">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#E5E7EB" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="20" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="16" Color="#000000" Opacity="0.04" ShadowDepth="2" Direction="270" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Primary Action Button Style -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource BrushPrimaryOrange}" />
             <Setter Property="Foreground" Value="#FFFFFF" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontWeight" Value="600" />
             <Setter Property="FontSize" Value="14" />
-            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="Padding" Value="18,10" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource PrimaryOrangeHoverBrush}" />
+                                <Setter Property="Background" Value="{StaticResource BrushPrimaryOrangeHover}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#C2410C" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#D1D5DB" />
+                                <Setter Property="Opacity" Value="0.9" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -64,33 +76,25 @@
             </Setter>
         </Style>
 
-        <!-- Nút phụ trắng xám -->
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="Foreground" Value="{StaticResource TextDarkBrush}" />
-            <Setter Property="FontWeight" Value="Medium" />
+        <!-- Secondary Button Style -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#F3F4F6" />
+            <Setter Property="Foreground" Value="#374151" />
+            <Setter Property="FontWeight" Value="600" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Padding" Value="14,8" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#D1D5DB" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#F3F4F6" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#E5E7EB" />
+                                <Setter Property="Background" Value="#E5E7EB" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -98,445 +102,707 @@
             </Setter>
         </Style>
 
-        <!-- Phong cách Card Trắng Bo Góc -->
-        <Style x:Key="CleanCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="18" />
-            <Setter Property="Effect">
+        <!-- Sidebar Navigation RadioButton Style -->
+        <Style x:Key="SidebarNavItem" TargetType="RadioButton">
+            <Setter Property="GroupName" Value="SidebarNav" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Height" Value="46" />
+            <Setter Property="Margin" Value="12,2" />
+            <Setter Property="Template">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Color="#0F172A" Opacity="0.04" />
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="itemBorder" Background="Transparent" CornerRadius="8" Padding="14,0">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0" Content="{TemplateBinding Tag}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{TemplateBinding Content}" FontSize="14" FontWeight="500" VerticalAlignment="Center" x:Name="navText" Foreground="{StaticResource BrushTextSecondary}" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="itemBorder" Property="Background" Value="#F3F4F6" />
+                                <Setter TargetName="navText" Property="Foreground" Value="{StaticResource BrushTextPrimary}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="itemBorder" Property="Background" Value="{StaticResource BrushPrimaryOrangeLight}" />
+                                <Setter TargetName="navText" Property="Foreground" Value="{StaticResource BrushPrimaryOrange}" />
+                                <Setter TargetName="navText" Property="FontWeight" Value="700" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- DataGrid Header & Row Styles -->
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#FFF7ED" />
-            <Setter Property="Foreground" Value="#C2410C" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Padding" Value="12,10" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <!-- Modern DataGrid Style -->
+        <Style x:Key="ModernDataGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="RowHeight" Value="44" />
+            <Setter Property="GridLinesVisibility" Value="Horizontal" />
+            <Setter Property="HorizontalGridLinesBrush" Value="#F3F4F6" />
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+            <Setter Property="AutoGenerateColumns" Value="False" />
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="CanUserAddRows" Value="False" />
+            <Setter Property="SelectionMode" Value="Single" />
+            <Setter Property="RowBackground" Value="#FFFFFF" />
+            <Setter Property="AlternatingRowBackground" Value="#FAFAFA" />
+            <Setter Property="ColumnHeaderHeight" Value="42" />
         </Style>
 
-        <Style TargetType="DataGridRow">
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F9FAFB" />
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+            <Setter Property="FontWeight" Value="600" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="Background" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="#F3F4F6" />
+            <Setter Property="Padding" Value="16,0" />
             <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="Padding" Value="0,6" />
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#FFFBF7" />
-                </Trigger>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#FFEDD5" />
-                    <Setter Property="Foreground" Value="#111827" />
-                </Trigger>
-            </Style.Triggers>
+            <Setter Property="BorderBrush" Value="#E5E7EB" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
 
         <Style TargetType="DataGridCell">
-            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Padding" Value="16,0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="DataGridCell">
-                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
                             <ContentPresenter VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource BrushPrimaryOrangeLight}" />
+                    <Setter Property="Foreground" Value="{StaticResource BrushPrimaryOrange}" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <!-- Row 0: Top Header -->
-            <RowDefinition Height="Auto" />
-            <!-- Row 1: Main Content (Left: Camera, Right: Info & Logs) -->
-            <RowDefinition Height="*" />
-            <!-- Row 2: Bottom Status Bar -->
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <!-- 1. Sidebar Width = 260px -->
+            <ColumnDefinition Width="260" />
+            <!-- 2. Main Content Area -->
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <!-- ========================================================= -->
-        <!-- HEADER: Logo, Tên hệ thống, Trạng thái Camera, Nút Đăng ký -->
-        <!-- ========================================================= -->
-        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,0,0,1" Padding="24,14">
+        <!-- ========================================== -->
+        <!-- SIDEBAR NAVIGATION (260px)                 -->
+        <!-- ========================================== -->
+        <Border Grid.Column="0" Background="{StaticResource BrushCardBg}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,1,0">
             <Grid>
-                <Grid.ColumnDefinitions>
-                    <!-- Logo & Brand Name -->
-                    <ColumnDefinition Width="Auto" />
-                    <!-- Spacer -->
-                    <ColumnDefinition Width="*" />
-                    <!-- Camera Status, Clock, Register Button -->
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <!-- Brand Section -->
+                    <RowDefinition Height="90" />
+                    <!-- Navigation Menu -->
+                    <RowDefinition Height="*" />
+                    <!-- Sidebar Footer -->
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <!-- Brand & Logo -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Icon huy hiệu màu cam -->
-                    <Border Width="44" Height="44" CornerRadius="10" Background="{StaticResource SoftOrangeBgBrush}" Margin="0,0,14,0">
-                        <TextBlock Text="🏋️" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <StackPanel VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="MYGYM" FontSize="20" FontWeight="Black" Foreground="{StaticResource PrimaryOrangeBrush}" />
-                            <TextBlock Text="MANAGER" FontSize="20" FontWeight="Black" Foreground="{StaticResource TextDarkBrush}" Margin="4,0,0,0" />
-                            <Border Background="#FEF3C7" CornerRadius="4" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="v1.0 STANDALONE" FontSize="10" FontWeight="Bold" Foreground="#B45309" />
-                            </Border>
+                <!-- Brand Section: Phuc Gym -->
+                <Border Grid.Row="0" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="20,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Dumbbell Logo Badge -->
+                        <Border Width="44" Height="44" CornerRadius="10" Background="{StaticResource BrushPrimaryOrange}" Margin="0,0,12,0">
+                            <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <!-- Dumbbell Vector Icon -->
+                                <Path Fill="#FFFFFF" Data="M6,5 V11 M18,5 V11 M3,7 V9 M21,7 V9 M6,8 H18" Stroke="#FFFFFF" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="20" Height="20" Stretch="Uniform" />
+                            </Grid>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="PHUC GYM" FontSize="19" FontWeight="800" Foreground="{StaticResource BrushPrimaryOrange}" />
+                            <TextBlock Text="SMART ATTENDANCE" FontSize="10" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" Margin="0,1,0,0" />
                         </StackPanel>
-                        <TextBlock Text="Hệ thống Nhận diện Khuôn mặt &amp; Điểm danh Tự động" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Margin="0,2,0,0" />
                     </StackPanel>
-                </StackPanel>
+                </Border>
 
-                <!-- Right Side Actions & Status -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Camera Live Status Pill -->
-                    <Border Background="#F3F4F6" CornerRadius="20" Padding="12,6" Margin="0,0,14,0" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Ellipse Width="10" Height="10" Fill="{Binding CameraStatusColor}" Margin="0,0,8,0" />
-                            <TextBlock Text="{Binding CameraStatusText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextDarkBrush}" />
-                        </StackPanel>
-                    </Border>
+                <!-- Navigation Items -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,14,0,0">
+                    <StackPanel>
+                        <!-- Item 0: Bảng điều khiển -->
+                        <RadioButton Style="{StaticResource SidebarNavItem}" Content="Bảng điều khiển"
+                                     Command="{Binding NavigateTabCommand}" CommandParameter="0">
+                            <RadioButton.Tag>
+                                <Path Fill="{StaticResource BrushPrimaryOrange}" Data="M3,3 H9 V11 H3 Z M11,3 H17 V7 H11 Z M11,9 H17 V17 H11 Z M3,13 H9 V17 H3 Z" Width="16" Height="16" Stretch="Uniform" />
+                            </RadioButton.Tag>
+                        </RadioButton>
 
-                    <!-- Real-time Clock -->
-                    <Border Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="12,6" Margin="0,0,16,0" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🕒" Margin="0,0,6,0" FontSize="12" />
-                            <TextBlock Text="{Binding SystemClockText}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextDarkBrush}" />
-                        </StackPanel>
-                    </Border>
+                        <!-- Item 1: Cổng điểm danh (Mặc định IsChecked=True) -->
+                        <RadioButton Style="{StaticResource SidebarNavItem}" Content="Cổng điểm danh" IsChecked="True"
+                                     Command="{Binding NavigateTabCommand}" CommandParameter="1">
+                            <RadioButton.Tag>
+                                <Path Fill="{StaticResource BrushPrimaryOrange}" Data="M4,4 H7 L8.5,2 H15.5 L17,4 H20 A2,2 0 0,1 22,6 V18 A2,2 0 0,1 20,20 H4 A2,2 0 0,1 2,18 V6 A2,2 0 0,1 4,4 Z M12,7 A5,5 0 1,0 12,17 A5,5 0 1,0 12,7 Z" Width="16" Height="16" Stretch="Uniform" />
+                            </RadioButton.Tag>
+                        </RadioButton>
 
-                    <!-- Nút Đăng ký Hội viên mới -->
-                    <Button Command="{Binding RegisterNewMemberCommand}" Style="{StaticResource SportOrangeButtonStyle}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="➕" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Đăng ký Hội viên mới" FontWeight="Bold" VerticalAlignment="Center" />
+                        <!-- Item 2: Lịch sử điểm danh -->
+                        <RadioButton Style="{StaticResource SidebarNavItem}" Content="Lịch sử điểm danh"
+                                     Command="{Binding NavigateTabCommand}" CommandParameter="2">
+                            <RadioButton.Tag>
+                                <Path Fill="{StaticResource BrushPrimaryOrange}" Data="M12,2 A10,10 0 1,0 22,12 A10,10 0 0,0 12,2 Z M12,6 A1,1 0 0,1 13,7 V12 L16.5,14 A1,1 0 0,1 15.5,15.7 L11.5,13.3 A1,1 0 0,1 11,12 V7 A1,1 0 0,1 12,6 Z" Width="16" Height="16" Stretch="Uniform" />
+                            </RadioButton.Tag>
+                        </RadioButton>
+
+                        <!-- Item 3: Quản lý Hội viên -->
+                        <RadioButton Style="{StaticResource SidebarNavItem}" Content="Hội viên"
+                                     Command="{Binding NavigateTabCommand}" CommandParameter="3">
+                            <RadioButton.Tag>
+                                <Path Fill="{StaticResource BrushPrimaryOrange}" Data="M12,12 A4,4 0 1,0 12,4 A4,4 0 0,0 12,12 Z M4,20 C4,16.7 7.6,14 12,14 C16.4,14 20,16.7 20,20 Z" Width="16" Height="16" Stretch="Uniform" />
+                            </RadioButton.Tag>
+                        </RadioButton>
+
+                        <!-- Item 4: Gói tập Gym -->
+                        <RadioButton Style="{StaticResource SidebarNavItem}" Content="Gói tập Gym"
+                                     Command="{Binding NavigateTabCommand}" CommandParameter="4">
+                            <RadioButton.Tag>
+                                <Path Fill="{StaticResource BrushPrimaryOrange}" Data="M3,7 L12,2 L21,7 L12,12 Z M3,9 L12,14 L21,9 V15 L12,20 L3,15 Z" Width="16" Height="16" Stretch="Uniform" />
+                            </RadioButton.Tag>
+                        </RadioButton>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Sidebar Footer Status -->
+                <Border Grid.Row="2" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="20,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <Ellipse Width="8" Height="8" Fill="#10B981" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Hệ thống Offline-First" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" />
                         </StackPanel>
-                    </Button>
-                </StackPanel>
+                        <TextBlock Text="ONNX Runtime • OpenCvSharp4" FontSize="11" Foreground="{StaticResource BrushTextMuted}" />
+                        <TextBlock Text="v1.0.0 Standalone Desktop" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 
-        <!-- ========================================================= -->
-        <!-- MAIN WORKSPACE: Chia 2 Cột (Trái: Camera, Phải: Thông tin & Logs) -->
-        <!-- ========================================================= -->
-        <Grid Grid.Row="1" Margin="20,16,20,12">
-            <Grid.ColumnDefinitions>
-                <!-- Cột Trái: Camera Live (Tỷ lệ 7) -->
-                <ColumnDefinition Width="7*" MinWidth="480" />
-                <!-- Cột Phải: Member Info Card & DataGrid (Tỷ lệ 5) -->
-                <ColumnDefinition Width="5*" MinWidth="420" />
-            </Grid.ColumnDefinitions>
+        <!-- ========================================== -->
+        <!-- MAIN CONTENT AREA (Header + Tab Views)     -->
+        <!-- ========================================== -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <!-- 1. Header (Height = 72px) -->
+                <RowDefinition Height="72" />
+                <!-- 2. Dynamic Tab Views -->
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-            <!-- ========================================== -->
-            <!-- CỘT TRÁI: KHUNG HÌNH LIVE CAMERA           -->
-            <!-- ========================================== -->
-            <Border Grid.Column="0" Style="{StaticResource CleanCardStyle}" Margin="0,0,10,0">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <!-- Card Header -->
-                        <RowDefinition Height="Auto" />
-                        <!-- Camera Feed Display -->
-                        <RowDefinition Height="*" />
-                        <!-- Camera Controls Footer -->
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+            <!-- ================= HEADER ================= -->
+            <Border Grid.Row="0" Background="{StaticResource BrushCardBg}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="28,0">
+                <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <!-- Title & Breadcrumb -->
+                        <ColumnDefinition Width="*" />
+                        <!-- Status Pills & Clock -->
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                    <!-- Camera Card Header -->
-                    <Grid Grid.Row="0" Margin="0,0,0,12">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="📹" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Khung Hình Camera Nhận Diện" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextDarkBrush}" VerticalAlignment="Center" />
-                        </StackPanel>
+                    <!-- Left: Title & Subtitle -->
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="CỔNG ĐIỂM DANH FACE ID" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
+                        <TextBlock Text="Nhận diện hội viên thời gian thực 60 FPS • Độ trễ &lt; 70ms" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
+                    </StackPanel>
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <Border Background="{StaticResource SoftOrangeBgBrush}" CornerRadius="6" Padding="8,4">
-                                <TextBlock Text="SCRFD + ArcFace 512D" FontSize="11" FontWeight="Bold" Foreground="{StaticResource PrimaryOrangeBrush}" />
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- Camera Viewport (Nền đen bo góc với HUD Overlay) -->
-                    <Border Grid.Row="1" Background="#0F172A" CornerRadius="10" ClipToBounds="True" BorderBrush="#334155" BorderThickness="1">
-                        <Grid>
-                            <!-- Live Camera Feed Image (Binding CameraFeed) -->
-                            <Image x:Name="CameraFeedControl"
-                                   Source="{Binding CameraFeed}"
-                                   Stretch="Uniform"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center" />
-
-                            <!-- Placeholder khi chưa có tín hiệu Camera -->
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        Visibility="{Binding CameraFeed, Converter={x:Null}}">
-                                <TextBlock Text="📷" FontSize="56" HorizontalAlignment="Center" Opacity="0.5" />
-                                <TextBlock Text="Đang khởi tạo nguồn Camera USB / RTSP..." FontSize="14" FontWeight="SemiBold" Foreground="#94A3B8" Margin="0,10,0,0" HorizontalAlignment="Center" />
-                                <TextBlock Text="Vui lòng kiểm tra kết nối thiết bị" FontSize="12" Foreground="#64748B" Margin="0,4,0,0" HorizontalAlignment="Center" />
+                    <!-- Right: Camera Status Badge + Live Clock -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Camera Status Pill -->
+                        <Border Background="#F3F4F6" CornerRadius="20" Padding="12,6" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="10" Height="10" Fill="{Binding CameraStatusColor}" Margin="0,0,8,0" />
+                                <TextBlock Text="{Binding CameraStatusText}" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" />
                             </StackPanel>
+                        </Border>
 
-                            <!-- Khung ngắm khuôn mặt (Face Reticle Overlay Giả lập HUD) -->
-                            <Canvas HorizontalAlignment="Center" VerticalAlignment="Center" Width="260" Height="260" IsHitTestVisible="False">
-                                <!-- 4 Góc ngắm màu Cam thể thao -->
-                                <!-- Top-Left -->
-                                <Path Stroke="{StaticResource PrimaryOrangeBrush}" StrokeThickness="3" Data="M 0,40 L 0,0 L 40,0" />
-                                <!-- Top-Right -->
-                                <Path Canvas.Left="220" Stroke="{StaticResource PrimaryOrangeBrush}" StrokeThickness="3" Data="M 0,0 L 40,0 L 40,40" />
-                                <!-- Bottom-Left -->
-                                <Path Canvas.Top="220" Stroke="{StaticResource PrimaryOrangeBrush}" StrokeThickness="3" Data="M 0,0 L 0,40 L 40,40" />
-                                <!-- Bottom-Right -->
-                                <Path Canvas.Left="220" Canvas.Top="220" Stroke="{StaticResource PrimaryOrangeBrush}" StrokeThickness="3" Data="M 40,0 L 40,40 L 0,40" />
-
-                                <!-- Label HUD giữa khung -->
-                                <Border Canvas.Top="230" Canvas.Left="45" Background="#80000000" CornerRadius="4" Padding="8,2">
-                                    <TextBlock Text="CĂN CHỈNH KHUÔN MẶT VÀO ĐÂY" FontSize="9" FontWeight="Bold" Foreground="#FDBA74" />
-                                </Border>
-                            </Canvas>
-                        </Grid>
-                    </Border>
-
-                    <!-- Camera Card Footer Controls -->
-                    <Grid Grid.Row="2" Margin="0,12,0,0">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Nguồn: " FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                            <TextBlock Text="DirectShow (Webcam 0)" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextDarkBrush}" VerticalAlignment="Center" Margin="0,0,16,0" />
-
-                            <TextBlock Text="Độ trễ: " FontSize="12" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
-                            <TextBlock Text="&lt; 16ms (Drop-Frame Active)" FontSize="12" FontWeight="SemiBold" Foreground="#10B981" VerticalAlignment="Center" />
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Command="{Binding ToggleCameraCommand}" Style="{StaticResource SecondaryButtonStyle}">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="⏯️" Margin="0,0,6,0" />
-                                    <TextBlock Text="Bật / Tạm dừng Camera" />
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                    </Grid>
+                        <!-- Live Real-Time Clock -->
+                        <Border Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="20" Padding="14,6">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Fill="{StaticResource BrushPrimaryOrange}" Data="M12,2 A10,10 0 1,0 22,12 A10,10 0 0,0 12,2 Z M12,6 V12 L16,14" Stroke="{StaticResource BrushPrimaryOrange}" StrokeThickness="1.5" Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" />
+                                <TextBlock Text="{Binding SystemClockText}" FontSize="12" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- ======================================================== -->
-            <!-- CỘT PHẢI: CARD HỘI VIÊN VỪA QUÉT & BẢNG DATAGRID LOGS     -->
-            <!-- ======================================================== -->
-            <Grid Grid.Column="1" Margin="10,0,0,0">
-                <Grid.RowDefinitions>
-                    <!-- Card Hội viên vừa quét (Height Auto) -->
-                    <RowDefinition Height="Auto" />
-                    <!-- Bảng Nhật ký Hôm nay (Height *) -->
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+            <!-- ================= DYNAMIC TAB VIEWS ================= -->
+            <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0" Margin="0">
+                <TabControl.ItemContainerStyle>
+                    <!-- Ẩn hoàn toàn header mặc định của TabControl -->
+                    <Style TargetType="TabItem">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                    </Style>
+                </TabControl.ItemContainerStyle>
 
-                <!-- CARD 1: THÔNG TIN HỘI VIÊN VỪA QUÉT MẶT -->
-                <Border Grid.Row="0" Style="{StaticResource CleanCardStyle}" Margin="0,0,0,14">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <!-- Header Card -->
-                            <RowDefinition Height="Auto" />
-                            <!-- Details: Avatar + Profile -->
-                            <RowDefinition Height="Auto" />
-                            <!-- Status Badge Box -->
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <!-- ======================================================== -->
+                <!-- TAB 0: BẢNG ĐIỀU KHIỂN (DASHBOARD)                        -->
+                <!-- ======================================================== -->
+                <TabItem>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28">
+                        <StackPanel>
+                            <!-- 4 Thẻ KPI thống kê nhanh -->
+                            <Grid Margin="0,0,0,24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
 
-                        <!-- Header -->
-                        <Grid Grid.Row="0" Margin="0,0,0,12">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="👤" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Hội Viên Vừa Quét Mặt" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextDarkBrush}" VerticalAlignment="Center" />
+                                <!-- Card 1: Lượt điểm danh hôm nay -->
+                                <Border Grid.Column="0" Style="{StaticResource ModernCard}" Margin="0,0,12,0">
+                                    <StackPanel>
+                                        <TextBlock Text="ĐIỂM DANH HÔM NAY" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
+                                        <TextBlock Text="{Binding TodayLogsCountText}" FontSize="32" FontWeight="800" Foreground="{StaticResource BrushPrimaryOrange}" Margin="0,8,0,0" />
+                                        <TextBlock Text="Cập nhật trực tiếp từ camera" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Card 2: Tổng hội viên -->
+                                <Border Grid.Column="1" Style="{StaticResource ModernCard}" Margin="6,0,6,0">
+                                    <StackPanel>
+                                        <TextBlock Text="TỔNG SỐ HỘI VIÊN" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
+                                        <TextBlock Text="{Binding MembersList.Count, StringFormat='{}{0} người'}" FontSize="32" FontWeight="800" Foreground="#2563EB" Margin="0,8,0,0" />
+                                        <TextBlock Text="Đã nạp vào bộ nhớ RAM" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Card 3: Gói tập đang mở bán -->
+                                <Border Grid.Column="2" Style="{StaticResource ModernCard}" Margin="6,0,6,0">
+                                    <StackPanel>
+                                        <TextBlock Text="GÓI TẬP HIỆN HÀNH" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
+                                        <TextBlock Text="{Binding PackagesList.Count, StringFormat='{}{0} gói'}" FontSize="32" FontWeight="800" Foreground="#10B981" Margin="0,8,0,0" />
+                                        <TextBlock Text="Gói 1 tháng, 3 tháng, 1 năm" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Card 4: Tình trạng động cơ AI -->
+                                <Border Grid.Column="3" Style="{StaticResource ModernCard}" Margin="12,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="ĐỘNG CƠ NHẬN DIỆN" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
+                                        <TextBlock Text="SCRFD + ArcFace" FontSize="20" FontWeight="800" Foreground="#8B5CF6" Margin="0,14,0,0" />
+                                        <TextBlock Text="Độ trễ &lt; 70ms trên CPU" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,8,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- Bảng xem trước lịch sử điểm danh gần đây -->
+                            <Border Style="{StaticResource ModernCard}">
+                                <StackPanel>
+                                    <TextBlock Text="Lượt điểm danh gần nhất" FontSize="16" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,16" />
+                                    <DataGrid Style="{StaticResource ModernDataGrid}" ItemsSource="{Binding TodayLogs}" MaxHeight="320">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Thời gian" Binding="{Binding CheckInTime}" Width="120" />
+                                            <DataGridTextColumn Header="Họ và Tên" Binding="{Binding FullName}" Width="*" />
+                                            <DataGridTextColumn Header="Số điện thoại" Binding="{Binding PhoneNumber}" Width="140" />
+                                            <DataGridTextColumn Header="Gói tập" Binding="{Binding PackageName}" Width="160" />
+                                            <DataGridTextColumn Header="Độ tin cậy" Binding="{Binding Confidence}" Width="120" />
+                                            <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="140" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ======================================================== -->
+                <!-- TAB 1: CỔNG ĐIỂM DANH FACE ID (ATTENDANCE GATE)            -->
+                <!-- ======================================================== -->
+                <TabItem>
+                    <Grid Margin="28">
+                        <Grid.ColumnDefinitions>
+                            <!-- Cột Trái (Camera + Thao tác): Width 500px -->
+                            <ColumnDefinition Width="500" />
+                            <!-- Cột Phải (Kết quả quẹt mặt + Bảng nhật ký): Width * -->
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- ================= CỘT TRÁI ================= -->
+                        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,24,0">
+                            <StackPanel>
+                                <!-- CARD 1: KHUNG CAMERA LIVE & GUIDE OVAL -->
+                                <Border Style="{StaticResource ModernCard}" Margin="0,0,0,20">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,14">
+                                            <TextBlock Text="Camera Quét Điểm Danh" FontSize="16" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                            <Border Background="{StaticResource BrushPrimaryOrangeLight}" CornerRadius="12" Padding="8,4" HorizontalAlignment="Right">
+                                                <TextBlock Text="60 FPS" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Camera Feed Container với Khung Oval Overlay -->
+                                        <Border Height="360" Background="#111827" CornerRadius="12" ClipToBounds="True" Margin="0,0,0,14">
+                                            <Grid>
+                                                <!-- Video Stream từ OpenCvSharp -->
+                                                <Image Source="{Binding CameraFeed}" Stretch="UniformToFill" />
+
+                                                <!-- Guide Oval Overlay (Khung Oval Hướng Dẫn Căn Chỉnh Mặt) -->
+                                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Ellipse Width="200" Height="270"
+                                                             Stroke="{StaticResource BrushPrimaryOrange}"
+                                                             StrokeThickness="2.5"
+                                                             StrokeDashArray="4 2">
+                                                        <Ellipse.Effect>
+                                                            <DropShadowEffect Color="#FF6B00" BlurRadius="12" Opacity="0.5" ShadowDepth="0" />
+                                                        </Ellipse.Effect>
+                                                    </Ellipse>
+                                                </Grid>
+
+                                                <!-- Nhãn nhắc nhở mờ ở đáy video -->
+                                                <Border Background="#80000000" CornerRadius="16" Padding="14,6"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16">
+                                                    <TextBlock Text="Căn chỉnh khuôn mặt vào khung oval" FontSize="12" FontWeight="600" Foreground="#FFFFFF" />
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Nút Bật/Tắt Camera -->
+                                        <Button Style="{StaticResource SecondaryButton}" Command="{Binding ToggleCameraCommand}" Height="42" Margin="0,0,0,8">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="Bật / Tạm dừng Camera Quét" />
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Thông báo trạng thái camera -->
+                                        <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{StaticResource BrushTextMuted}" TextAlignment="Center" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- CARD 2: ĐIỂM DANH THỦ CÔNG QUA SỐ ĐIỆN THOẠI -->
+                                <Border Style="{StaticResource ModernCard}">
+                                    <StackPanel>
+                                        <TextBlock Text="Điểm Danh Thủ Công" FontSize="15" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,12" />
+                                        <TextBlock Text="Nhập số điện thoại hội viên khi camera chưa quét được:" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,10" />
+
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Grid.Column="0" Text="{Binding ManualPhoneNumber, UpdateSourceTrigger=PropertyChanged}"
+                                                     Height="40" Padding="12,0" VerticalContentAlignment="Center" FontSize="14"
+                                                     BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,8,0">
+                                                <TextBox.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="8" />
+                                                    </Style>
+                                                </TextBox.Resources>
+                                            </TextBox>
+                                            <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Command="{Binding ManualCheckInCommand}" Height="40" Padding="16,0" Content="Xác nhận" />
+                                        </Grid>
+
+                                        <TextBlock Text="{Binding ManualCheckInStatus}" FontSize="12" FontWeight="600" Foreground="{Binding StatusColor}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
-                            <TextBlock Text="Kết quả AI Realtime" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
-                        </Grid>
+                        </ScrollViewer>
 
-                        <!-- Member Profile Overview -->
-                        <Grid Grid.Row="1" Margin="0,0,0,14">
-                            <Grid.ColumnDefinitions>
-                                <!-- Avatar Frame -->
-                                <ColumnDefinition Width="Auto" />
-                                <!-- Details -->
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
+                        <!-- ================= CỘT PHẢI ================= -->
+                        <Grid Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <!-- 1. Card Kết Quả Quét Mặt -->
+                                <RowDefinition Height="Auto" />
+                                <!-- 2. Bảng Quét Thẻ Gần Nhất Trong Ngày -->
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
 
-                            <!-- Avatar Profile Circle -->
-                            <Border Grid.Column="0" Width="82" Height="82" CornerRadius="41"
-                                    BorderBrush="{StaticResource PrimaryOrangeBrush}" BorderThickness="3"
-                                    Background="{StaticResource SoftOrangeBgBrush}" Margin="0,0,16,0"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="👤" FontSize="44" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource PrimaryOrangeBrush}" />
+                            <!-- CARD 3: KẾT QUẢ QUÉT KHUÔN MẶT (MATCH RESULT CARD) -->
+                            <Border Grid.Row="0" Style="{StaticResource ModernCard}" Margin="0,0,0,20">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <!-- Avatar Section -->
+                                        <ColumnDefinition Width="130" />
+                                        <!-- Details Information -->
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Avatar hoặc Icon Circle -->
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Border Width="100" Height="100" CornerRadius="50" Background="#F3F4F6" BorderBrush="{Binding StatusColor}" BorderThickness="3" ClipToBounds="True">
+                                            <Grid>
+                                                <!-- Icon người dùng mặc định -->
+                                                <Path Fill="{StaticResource BrushTextMuted}" Data="M12,12 A5,5 0 1,0 12,2 A5,5 0 0,0 12,12 Z M4,22 C4,18 7.5,15 12,15 C16.5,15 20,18 20,22 Z" Width="52" Height="52" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+
+                                    <!-- Thông tin Hội viên & Badge Trạng thái -->
+                                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                                        <!-- Badge Trạng Thái Lớn (Xanh / Đỏ / Vàng) -->
+                                        <Border Background="{Binding MemberStatusBadgeBg}" CornerRadius="20" Padding="14,6" HorizontalAlignment="Left" Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding MemberStatusBadgeText}" FontSize="13" FontWeight="700" Foreground="{Binding MemberStatusBadgeFg}" />
+                                        </Border>
+
+                                        <!-- Họ và tên hội viên -->
+                                        <TextBlock Text="{Binding MemberFullName}" FontSize="24" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,10" />
+
+                                        <!-- Thông tin chi tiết 2 cột -->
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- SĐT -->
+                                            <TextBlock Grid.Column="0" Text="Số điện thoại:" FontSize="13" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,8,0" />
+                                            <TextBlock Grid.Column="1" Text="{Binding MemberPhoneNumber}" FontSize="13" FontWeight="600" Foreground="{StaticResource BrushTextPrimary}" />
+
+                                            <!-- Gói tập -->
+                                            <TextBlock Grid.Column="2" Text="Gói tập:" FontSize="13" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,8,0" />
+                                            <TextBlock Grid.Column="3" Text="{Binding MemberPackageName}" FontSize="13" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
+                                        </Grid>
+
+                                        <!-- Hạn thẻ -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <TextBlock Text="Thời hạn thẻ: " FontSize="13" Foreground="{StaticResource BrushTextMuted}" />
+                                            <TextBlock Text="{Binding MemberExpiryText}" FontSize="13" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
                             </Border>
 
-                            <!-- Fields -->
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <!-- Họ và Tên -->
-                                <TextBlock Text="{Binding MemberFullName}" FontSize="18" FontWeight="Black" Foreground="{StaticResource TextDarkBrush}" TextTrimming="CharacterEllipsis" />
+                            <!-- CARD 4: BẢNG LỊCH SỬ ĐIỂM DANH TRONG NGÀY -->
+                            <Border Grid.Row="1" Style="{StaticResource ModernCard}" Padding="20,16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
 
-                                <!-- Số điện thoại -->
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <TextBlock Text="📞 " FontSize="12" />
-                                    <TextBlock Text="{Binding MemberPhoneNumber}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
-                                </StackPanel>
+                                    <!-- Bảng Header -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,14">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="Lịch Sử Điểm Danh Hôm Nay" FontSize="16" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" />
+                                            <Border Background="{StaticResource BrushPrimaryOrangeLight}" CornerRadius="12" Padding="8,2" Margin="10,0,0,0">
+                                                <TextBlock Text="{Binding TodayLogsCountText}" FontSize="12" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Height="32" Padding="12,0" HorizontalAlignment="Right" Command="{Binding RefreshMembersCommand}" />
+                                    </Grid>
 
-                                <!-- Gói tập -->
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <TextBlock Text="🏷️ " FontSize="12" />
-                                    <TextBlock Text="{Binding MemberPackageName}" FontSize="13" FontWeight="Bold" Foreground="{StaticResource PrimaryOrangeBrush}" />
-                                </StackPanel>
-
-                                <!-- Hạn thẻ -->
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <TextBlock Text="📅 " FontSize="12" />
-                                    <TextBlock Text="{Binding MemberExpiryText}" FontSize="12" Foreground="{StaticResource TextDarkBrush}" />
-                                </StackPanel>
-                            </StackPanel>
+                                    <!-- Bảng DataGrid hiển thị realtime -->
+                                    <DataGrid Grid.Row="1" Style="{StaticResource ModernDataGrid}" ItemsSource="{Binding TodayLogs}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Giờ vào" Binding="{Binding CheckInTime}" Width="110" />
+                                            <DataGridTextColumn Header="Họ và Tên" Binding="{Binding FullName}" Width="*" />
+                                            <DataGridTextColumn Header="Số điện thoại" Binding="{Binding PhoneNumber}" Width="130" />
+                                            <DataGridTextColumn Header="Gói tập" Binding="{Binding PackageName}" Width="160" />
+                                            <DataGridTextColumn Header="Độ tin cậy" Binding="{Binding Confidence}" Width="110" />
+                                            <DataGridTemplateColumn Header="Trạng thái" Width="130">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border CornerRadius="12" Padding="10,3" HorizontalAlignment="Left">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="#D1FAE5" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                                                            <Setter Property="Background" Value="#FEE2E2" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="600">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="#047857" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                                                                <Setter Property="Foreground" Value="#B91C1C" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
                         </Grid>
+                    </Grid>
+                </TabItem>
 
-                        <!-- Status Badge (Màu xanh / Màu đỏ nổi bật) -->
-                        <Border Grid.Row="2" Background="{Binding MemberStatusBadgeBg}" CornerRadius="8" Padding="14,10">
-                            <TextBlock Text="{Binding MemberStatusBadgeText}"
-                                       Foreground="{Binding MemberStatusBadgeFg}"
-                                       FontSize="14" FontWeight="Black"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       TextAlignment="Center" />
+                <!-- ======================================================== -->
+                <!-- TAB 2: LỊCH SỬ ĐIỂM DANH TOÀN DIỆN (CHECKIN LOGS)         -->
+                <!-- ======================================================== -->
+                <TabItem>
+                    <Grid Margin="28">
+                        <Border Style="{StaticResource ModernCard}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0" Margin="0,0,0,16">
+                                    <TextBlock Text="Nhật Ký Điểm Danh Hệ Thống" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
+                                    <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Height="34" Padding="14,0" HorizontalAlignment="Right" Command="{Binding RefreshMembersCommand}" />
+                                </Grid>
+
+                                <DataGrid Grid.Row="1" Style="{StaticResource ModernDataGrid}" ItemsSource="{Binding TodayLogs}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Thời gian" Binding="{Binding CheckInTime}" Width="120" />
+                                        <DataGridTextColumn Header="Họ và Tên Hội Viên" Binding="{Binding FullName}" Width="*" />
+                                        <DataGridTextColumn Header="Số điện thoại" Binding="{Binding PhoneNumber}" Width="150" />
+                                        <DataGridTextColumn Header="Gói tập hiện tại" Binding="{Binding PackageName}" Width="180" />
+                                        <DataGridTextColumn Header="Độ tin cậy" Binding="{Binding Confidence}" Width="130" />
+                                        <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="140" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
                         </Border>
                     </Grid>
-                </Border>
+                </TabItem>
 
-                <!-- CARD 2: BẢNG NHẬT KÝ ĐIỂM DANH HÔM NAY (DATAGRID) -->
-                <Border Grid.Row="1" Style="{StaticResource CleanCardStyle}">
-                    <Grid>
+                <!-- ======================================================== -->
+                <!-- TAB 3: QUẢN LÝ HỘI VIÊN (MEMBERS MANAGEMENT)              -->
+                <!-- ======================================================== -->
+                <TabItem>
+                    <Grid Margin="28">
                         <Grid.RowDefinitions>
-                            <!-- Header & Counter -->
+                            <!-- Search & Action Bar -->
                             <RowDefinition Height="Auto" />
                             <!-- DataGrid -->
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <!-- Header -->
-                        <Grid Grid.Row="0" Margin="0,0,0,10">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="📋" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Nhật Ký Điểm Danh Hôm Nay" FontSize="15" FontWeight="Bold" Foreground="{StaticResource TextDarkBrush}" VerticalAlignment="Center" />
-                            </StackPanel>
+                        <!-- Thanh tìm kiếm & Nút thêm mới -->
+                        <Grid Grid.Row="0" Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="380" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                            <Border Background="{StaticResource SoftOrangeBgBrush}" CornerRadius="12" Padding="10,3" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding TodayLogsCountText}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource PrimaryOrangeBrush}" />
-                            </Border>
+                            <!-- Search Input Box -->
+                            <TextBox Grid.Column="0" Text="{Binding MemberSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="42" Padding="14,0" VerticalContentAlignment="Center" FontSize="14"
+                                     BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                                <TextBox.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+
+                            <!-- Actions: Thêm mới hội viên & Làm mới -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Command="{Binding RefreshMembersCommand}" Height="42" Margin="0,0,10,0" />
+                                <Button Style="{StaticResource PrimaryButton}" Content="+ Đăng ký Face ID mới" Command="{Binding RegisterNewMemberCommand}" Height="42" />
+                            </StackPanel>
                         </Grid>
 
-                        <!-- DataGrid TodayLogs -->
-                        <DataGrid Grid.Row="1"
-                                  ItemsSource="{Binding TodayLogs}"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  IsReadOnly="True"
-                                  SelectionMode="Single"
-                                  GridLinesVisibility="Horizontal"
-                                  HeadersVisibility="Column"
-                                  BorderThickness="1"
-                                  BorderBrush="{StaticResource BorderLightBrush}"
-                                  Background="#FFFFFF"
-                                  RowHeaderWidth="0">
-
-                            <DataGrid.Columns>
-                                <!-- Giờ vào -->
-                                <DataGridTextColumn Header="Giờ vào" Binding="{Binding CheckInTime}" Width="80">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="SemiBold" />
-                                            <Setter Property="Foreground" Value="{StaticResource PrimaryOrangeBrush}" />
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Tên hội viên -->
-                                <DataGridTextColumn Header="Họ và Tên" Binding="{Binding FullName}" Width="1.5*">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="Bold" />
-                                            <Setter Property="Foreground" Value="{StaticResource TextDarkBrush}" />
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Gói tập -->
-                                <DataGridTextColumn Header="Gói tập" Binding="{Binding PackageName}" Width="*" />
-
-                                <!-- Độ tin cậy (Confidence) -->
-                                <DataGridTextColumn Header="Độ khớp" Binding="{Binding Confidence}" Width="75">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontSize" Value="11" />
-                                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <!-- Trạng thái -->
-                                <DataGridTemplateColumn Header="Trạng thái" Width="95">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#D1FAE5" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsValid}" Value="False">
-                                                                <Setter Property="Background" Value="#FEE2E2" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="Bold">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#065F46" />
+                        <!-- DataGrid Danh sách hội viên -->
+                        <Border Grid.Row="1" Style="{StaticResource ModernCard}" Padding="0" ClipToBounds="True">
+                            <DataGrid Style="{StaticResource ModernDataGrid}" ItemsSource="{Binding MembersList}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Họ và Tên" Binding="{Binding FullName}" Width="*" />
+                                    <DataGridTextColumn Header="Số điện thoại" Binding="{Binding PhoneNumber}" Width="150" />
+                                    <DataGridTextColumn Header="Gói tập" Binding="{Binding Package.Name}" Width="180" />
+                                    <DataGridTextColumn Header="Ngày bắt đầu" Binding="{Binding StartDate, StringFormat='{}{0:dd/MM/yyyy}'}" Width="130" />
+                                    <DataGridTextColumn Header="Ngày hết hạn" Binding="{Binding EndDate, StringFormat='{}{0:dd/MM/yyyy}'}" Width="130" />
+                                    <DataGridTemplateColumn Header="Trạng thái" Width="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border CornerRadius="12" Padding="10,3" HorizontalAlignment="Left">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#D1FAE5" />
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsValid}" Value="False">
-                                                                    <Setter Property="Foreground" Value="#991B1B" />
+                                                                <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                                    <Setter Property="Background" Value="#FEE2E2" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                                                    </Border.Style>
+                                                    <TextBlock FontSize="12" FontWeight="600">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Text" Value="Hoạt động" />
+                                                                <Setter Property="Foreground" Value="#047857" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                                        <Setter Property="Text" Value="Bị khóa" />
+                                                                        <Setter Property="Foreground" Value="#B91C1C" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Header="Face ID Templates" Binding="{Binding FaceVectors.Count, StringFormat='{}{0} góc'}" Width="140" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
                     </Grid>
-                </Border>
-            </Grid>
+                </TabItem>
+
+                <!-- ======================================================== -->
+                <!-- TAB 4: QUẢN LÝ GÓI TẬP (PACKAGES MANAGEMENT)              -->
+                <!-- ======================================================== -->
+                <TabItem>
+                    <Grid Margin="28">
+                        <Grid.RowDefinitions>
+                            <!-- Search & Action Bar -->
+                            <RowDefinition Height="Auto" />
+                            <!-- DataGrid -->
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Thanh tìm kiếm gói tập -->
+                        <Grid Grid.Row="0" Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="380" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0" Text="{Binding PackageSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="42" Padding="14,0" VerticalContentAlignment="Center" FontSize="14"
+                                     BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                                <TextBox.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Command="{Binding RefreshPackagesCommand}" Height="42" Margin="0,0,10,0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Bảng danh sách gói tập -->
+                        <Border Grid.Row="1" Style="{StaticResource ModernCard}" Padding="0" ClipToBounds="True">
+                            <DataGrid Style="{StaticResource ModernDataGrid}" ItemsSource="{Binding PackagesList}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Tên gói tập" Binding="{Binding Name}" Width="240" />
+                                    <DataGridTextColumn Header="Thời lượng" Binding="{Binding DurationDays, StringFormat='{}{0} ngày'}" Width="130" />
+                                    <DataGridTextColumn Header="Đơn giá (VNĐ)" Binding="{Binding Price, StringFormat='{}{0:#,##0} VNĐ'}" Width="180" />
+                                    <DataGridTextColumn Header="Mô tả chi tiết" Binding="{Binding Description}" Width="*" />
+                                    <DataGridTextColumn Header="Số hội viên" Binding="{Binding Members.Count, StringFormat='{}{0} người'}" Width="120" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </TabItem>
+            </TabControl>
         </Grid>
-
-        <!-- ========================================================= -->
-        <!-- BOTTOM STATUS BAR                                         -->
-        <!-- ========================================================= -->
-        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="{StaticResource BorderLightBrush}" BorderThickness="0,1,0,0" Padding="20,8">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="ℹ️ " FontSize="12" />
-                    <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{StaticResource TextDarkBrush}" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Động cơ AI: InsightFace SCRFD-10G &amp; ArcFace-R50 • SQLite Local" FontSize="11" Foreground="{StaticResource TextMutedBrush}" />
-                </StackPanel>
-            </Grid>
-        </Border>
     </Grid>
 </Window>
