@@ -72,8 +72,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private readonly DispatcherTimer _clockTimer;
     private readonly ICameraService? _cameraService;
+    private readonly IFaceEngine? _faceEngine;
     private readonly AttendanceCoordinator? _attendanceCoordinator;
     private readonly AppDbContext? _dbContext;
+    private readonly AudioNotificationService? _audioService;
     private bool _disposed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -280,12 +282,16 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     public MainViewModel(
         ICameraService cameraService,
+        IFaceEngine faceEngine,
         AttendanceCoordinator attendanceCoordinator,
-        AppDbContext dbContext)
+        AppDbContext dbContext,
+        AudioNotificationService audioService)
     {
         _cameraService = cameraService;
+        _faceEngine = faceEngine;
         _attendanceCoordinator = attendanceCoordinator;
         _dbContext = dbContext;
+        _audioService = audioService;
 
         RegisterNewMemberCommand = new RelayCommand(OnRegisterNewMember);
         ToggleCameraCommand = new RelayCommand(async () => await ToggleCameraAsync());
@@ -317,7 +323,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>
     /// Constructor không tham số dành cho XAML Designer / Fallback.
     /// </summary>
-    public MainViewModel() : this(null!, null!, null!)
+    public MainViewModel() : this(null!, null!, null!, null!, null!)
     {
     }
 
@@ -412,6 +418,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 MemberStatusBadgeBg = new SolidColorBrush(Color.FromRgb(254, 226, 226)); // Đỏ nhạt
                 MemberStatusBadgeFg = new SolidColorBrush(Color.FromRgb(185, 28, 28));   // Đỏ đậm
                 StatusColor = new SolidColorBrush(Color.FromRgb(239, 68, 68));          // ĐỎ
+
+                // Phát âm thanh cảnh báo khi thẻ đã hết hạn
+                if (e.IsNewCheckIn)
+                {
+                    _audioService?.PlayMembershipExpired(member.FullName);
+                }
             }
             else
             {
@@ -422,6 +434,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 MemberStatusBadgeBg = new SolidColorBrush(Color.FromRgb(209, 250, 229)); // Xanh ngọc nhạt
                 MemberStatusBadgeFg = new SolidColorBrush(Color.FromRgb(4, 120, 87));    // Xanh đậm
                 StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));         // XANH LÁ
+
+                // Phát âm thanh chuông đôi chào mừng điểm danh thành công
+                if (e.IsNewCheckIn)
+                {
+                    _audioService?.PlayCheckInSuccess(member.FullName);
+                }
             }
 
             MemberAvatarPath = member.AvatarPath;
@@ -463,7 +481,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             MemberStatusBadgeFg = new SolidColorBrush(Color.FromRgb(180, 83, 9));    // Vàng cam đậm
             StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));          // VÀNG / CAM
 
-            StatusMessage = $"Phát hiện khuôn mặt lạ (Score: {score:F2}). Nhấn 'Đăng ký Hội viên mới' để tạo hồ sơ.";
+            StatusMessage = $"Phát hiện khuôn mặt lạ (Score: {score:F2}). Nhấn '+ Đăng ký Face ID mới' để tạo hồ sơ.";
+            _audioService?.PlayUnidentifiedFace();
         });
     }
 
@@ -724,11 +743,36 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void OnRegisterNewMember()
     {
-        MessageBox.Show(
-            "Tính năng 'Đăng ký Hội viên mới' đang được mở rộng.\nBạn có thể chụp 3 góc mặt (Multi-Template FaceID) để ghi danh.",
-            "Phuc Gym — Đăng ký Hội viên",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        if (_cameraService == null || _faceEngine == null || _dbContext == null || _attendanceCoordinator == null)
+        {
+            MessageBox.Show(
+                "Các dịch vụ hệ thống (Camera / AI / CSDL) chưa sẵn sàng.",
+                "Thông báo",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            var registerVm = new RegisterMemberViewModel(_cameraService, _faceEngine, _dbContext, _attendanceCoordinator);
+            var window = new Views.RegisterMemberWindow(registerVm)
+            {
+                Owner = Application.Current?.MainWindow
+            };
+
+            if (window.ShowDialog() == true)
+            {
+                _ = LoadMembersAsync();
+                StatusMessage = "Đã lưu và kích hoạt Face ID cho hội viên mới thành công!";
+                StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                _audioService?.PlayCheckInSuccess();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi khi mở giao diện đăng ký: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void UpdateClock()

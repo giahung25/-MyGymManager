@@ -67,7 +67,7 @@ public partial class App : Application
         services.AddSingleton<ICameraService, OpenCvCameraService>();
         services.AddSingleton<IFaceEngine, OnnxFaceEngine>();
         services.AddSingleton<AttendanceCoordinator>();
-
+        services.AddSingleton<AudioNotificationService>();
         // ViewModels & Views
         services.AddSingleton<MainViewModel>();
         services.AddTransient<MainWindow>();

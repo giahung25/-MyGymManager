@@ -173,7 +173,50 @@ Tài liệu này chuẩn hóa toàn bộ 8 kịch bản kiểm thử (Test Cases
   - Dữ liệu hội viên được lưu bền vững trong file `phuc_gym.db`.
   - RAM Cache tăng thêm 1 hội viên mà không cần khởi động lại ứng dụng.
   - Lượt quét tiếp theo nhận diện thành công ngay lập tức.
-- **Kết quả thực tế:** **PASS** (Cơ chế in-memory update hoạt động hoàn hảo, sẵn sàng cho Form đăng ký chi tiết ở Sprint tiếp theo).
+- **Kết quả thực tế:** **PASS** (Cơ chế in-memory update hoạt động hoàn hảo qua RegisterMemberWindow).
+
+---
+
+## 🚀 KỊCH BẢN KIỂM THỬ TÍCH HỢP ĐẦU CUỐI (END-TO-END WORKFLOW)
+### E2E-01: Quy trình Đăng ký Hội viên mới ➔ Quét mặt Điểm danh Thành công (Registration ➔ Live Recognition ➔ Audio Feedback)
+
+Kịch bản tích hợp toàn diện luồng nghiệp vụ thực tế của lễ tân phòng gym: từ lúc khách hàng bước vào đăng ký thẻ tập mới cho đến khi tiến hành quẹt mặt điểm danh tại cửa ra vào.
+
+#### 1. Sơ đồ luồng dữ liệu (Data & Event Flow):
+```
+[ Lễ tân bấm 'Đăng ký' ] ──> Mở RegisterMemberWindow
+          │
+          ▼
+[ Nhập Tên, SĐT, Chọn Gói ] ──> Bấm 'Chụp khuôn mặt' ──> [ SCRFD Detect + ArcFace 512-d ]
+          │
+          ▼
+[ Bấm 'Lưu Hội viên' ] ──> Ghi SQLite (phuc_gym.db) ──> Update RAM Cache (AttendanceCoordinator)
+          │
+          ▼
+[ Hội viên đứng trước Camera chính ] ──> [ Live Feed 30 FPS ] ──> [ AttendanceCoordinator ]
+          │
+          ▼
+[ So khớp Cosine Similarity >= 0.65 ]
+     ├──> [ Card Cột Phải: Thông tin Hội viên + Badge Xanh 'HỢP LỆ' ]
+     ├──> [ AudioNotificationService: Chuông đôi ngân cao (1046Hz -> 1318Hz) ]
+     └──> [ SQLite CheckInLogs: Ghi log & Chèn dòng đầu DataGrid TodayLogs ]
+```
+
+#### 2. Chi tiết các bước thực hiện & Tiêu chuẩn đánh giá:
+
+| Bước | Hành Động Thực Hiện | Dữ Liệu Đầu Vào | Phản Hồi Hệ Thống Mong Đợi | Trạng Thái |
+| :---: | :--- | :--- | :--- | :---: |
+| **B1** | Nhấn nút `➕ Đăng ký Hội viên mới` trên Header của MainWindow | Click Button hoặc gọi `RegisterNewMemberCommand` | Modal `RegisterMemberWindow` xuất hiện mượt mà chính giữa màn hình, camera preview phụ hiển thị 30 FPS kèm khung Oval căn chỉnh | 🟢 **PASS** |
+| **B2** | Nhập thông tin hồ sơ hội viên | • Họ tên: `"Trương Hoàng Nam"`<br>• SĐT: `"0966554433"`<br>• Gói tập: `"Gói 3 Tháng (Silver)"` | Validation tự động mở khóa nút `Lưu Hội Viên` sau khi có ít nhất 1 vector khuôn mặt; kiểm tra SĐT không trùng lặp | 🟢 **PASS** |
+| **B3** | Đưa mặt vào khung Oval và nhấn `📸 Chụp khuôn mặt` | Frame hình chụp từ camera live | `OnnxFaceEngine` chạy SCRFD tìm khuôn mặt lớn nhất, cắt crop chuẩn, ArcFace trích xuất vector 512-d; ảnh crop hiển thị lên góc xem trước, thông báo *"Chụp thành công góc mặt 1 (ArcFace 512-d)"* | 🟢 **PASS** |
+| **B4** | Bấm nút `💾 Lưu Hội Viên & Kích Hoạt Face ID` | Nhấn nút Lưu | • Hội viên mới được tạo theo Rich Domain Model.<br>• Lưu bản ghi bền vững vào SQLite `phuc_gym.db`.<br>• `AttendanceCoordinator.UpdateMemberInCache(newMember)` nạp ngay vector vào RAM.<br>• Dialog đóng lại, Dashboard lễ tân cập nhật số hội viên | 🟢 **PASS** |
+| **B5** | Hội viên mới đứng trước Camera tại màn hình chính `MainWindow` | Khuôn mặt thật của hội viên vừa đăng ký | • `AttendanceCoordinator` nhận diện khớp vector với điểm tương đồng Cosine $\ge 0.85$.<br>• Cột Phải cập nhật ngay: Họ tên *"Trương Hoàng Nam"*, SĐT *"0966554433"*, Gói *"Gói 3 Tháng (Silver)"*, Hạn còn 90 ngày.<br>• Status Badge hiển thị màu xanh: `✅ HỢP LỆ — MỜI VÀO TẬP`. | 🟢 **PASS** |
+| **B6** | Phản hồi âm thanh & Ghi nhận lịch sử vào phòng tập | Tự động kích hoạt khi nhận diện thành công | • `AudioNotificationService.PlayCheckInSuccess()` phát chuông âm sắc đôi ngân cao C6 $\rightarrow$ E6 vui tươi trên luồng nền.<br>• Thêm 1 dòng điểm danh mới vào SQLite và đẩy lên đầu bảng DataGrid `TodayLogs` với độ tin cậy hiển thị rõ ràng. | 🟢 **PASS** |
+
+#### 3. Tiêu chuẩn nghiệm thu E2E (Acceptance Criteria):
+1. **Tính tức thời (Zero Latency):** Ngay sau khi bấm "Lưu", không cần khởi động lại phần mềm, hội viên có thể quét mặt điểm danh ngay lập tức với thời gian phản hồi $< 300\text{ms}$.
+2. **Không block luồng (Non-blocking):** Âm thanh phát ra trên background thread độc lập, không làm đơ hay giật khung hình camera.
+3. **Bảo toàn dữ liệu (Data Integrity):** File SQLite lưu đầy đủ cả thông tin cá nhân lẫn mảng JSON vector 512 chiều của hội viên.
 
 ---
 

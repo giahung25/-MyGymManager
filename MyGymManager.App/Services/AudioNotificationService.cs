@@ -1,0 +1,105 @@
+namespace MyGymManager.Services;
+
+using System.Diagnostics;
+using System.Media;
+
+/// <summary>
+/// Dịch vụ phát âm thanh thông báo tự động (Audio Feedback Service).
+/// Phát chuông chào mừng khi điểm danh thành công và chuông cảnh báo khi thẻ hội viên hết hạn.
+/// Toàn bộ âm thanh được phát trên Background Thread (Task.Run) để không bao giờ block Camera hay UI.
+/// </summary>
+public class AudioNotificationService
+{
+    private static readonly object _audioLock = new();
+
+    /// <summary>
+    /// Phát âm thanh chào mừng khi hội viên điểm danh thành công (Thẻ hợp lệ).
+    /// Chuỗi âm sắc đôi ngân cao C6 -> E6 (1046Hz -> 1318Hz).
+    /// </summary>
+    public void PlayCheckInSuccess(string? memberName = null)
+    {
+        _ = Task.Run(() =>
+        {
+            lock (_audioLock)
+            {
+                try
+                {
+                    // Âm thanh đôi ngân cao vui tươi
+                    Console.Beep(1046, 100);
+                    Thread.Sleep(30);
+                    Console.Beep(1318, 180);
+                }
+                catch
+                {
+                    try
+                    {
+                        // Fallback sang âm thanh hệ thống Windows
+                        SystemSounds.Asterisk.Play();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[AudioNotificationService] Lỗi phát âm thanh: {ex.Message}");
+                    }
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Phát âm thanh cảnh báo khi thẻ hội viên đã hết hạn.
+    /// Chuỗi âm sắc trầm cảnh báo A4 -> E4 (440Hz -> 330Hz).
+    /// </summary>
+    public void PlayMembershipExpired(string? memberName = null)
+    {
+        _ = Task.Run(() =>
+        {
+            lock (_audioLock)
+            {
+                try
+                {
+                    // Âm thanh trầm cảnh báo
+                    Console.Beep(440, 180);
+                    Thread.Sleep(40);
+                    Console.Beep(330, 280);
+                }
+                catch
+                {
+                    try
+                    {
+                        // Fallback sang âm thanh Hand / Alert của Windows
+                        SystemSounds.Hand.Play();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[AudioNotificationService] Lỗi phát âm thanh cảnh báo: {ex.Message}");
+                    }
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Phát âm thanh ngắn thông báo khi phát hiện khuôn mặt lạ chưa đăng ký.
+    /// </summary>
+    public void PlayUnidentifiedFace()
+    {
+        _ = Task.Run(() =>
+        {
+            lock (_audioLock)
+            {
+                try
+                {
+                    Console.Beep(659, 100);
+                }
+                catch
+                {
+                    try
+                    {
+                        SystemSounds.Beep.Play();
+                    }
+                    catch { }
+                }
+            }
+        });
+    }
+}
