@@ -6,8 +6,8 @@
         xmlns:vm="clr-namespace:MyGymManager.App.ViewModels"
         mc:Ignorable="d"
         Title="Đăng Ký Hội Viên Mới &amp; Quét Face ID — Phuc Gym"
-        Height="680" Width="920"
-        MinWidth="820" MinHeight="600"
+        Height="720" Width="920"
+        MinWidth="820" MinHeight="560"
         WindowStartupLocation="CenterOwner"
         FontFamily="Segoe UI, Inter, Arial"
         Background="#F8F9FA">
@@ -109,10 +109,11 @@
             </Grid>
         </Border>
 
-        <!-- Form 2 Cột -->
-        <Grid Grid.Row="1" Margin="0,0,0,16">
-            <Grid.ColumnDefinitions>
-                <!-- Cột trái: Thông tin cá nhân & Gói tập -->
+        <!-- Form 2 Cột có ScrollViewer chống tràn màn hình laptop scale 125%/150% -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,14">
+            <Grid Margin="0,0,10,0">
+                <Grid.ColumnDefinitions>
+                    <!-- Cột trái: Thông tin cá nhân & Gói tập -->
                 <ColumnDefinition Width="380" />
                 <!-- Cột phải: Chụp ảnh Face ID -->
                 <ColumnDefinition Width="*" />
@@ -202,15 +203,41 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <!-- 1. Nút Bắt Đầu Quét Face ID -->
-                        <Button Grid.Row="0"
-                                Style="{StaticResource PrimaryBtn}"
-                                Command="{Binding StartCaptureCommand}"
-                                Content="{Binding StartCaptureButtonText}"
-                                Height="38"
-                                FontSize="13"
-                                FontWeight="700"
-                                Margin="0,0,0,10" />
+                        <!-- 1. Hàng Nút: Bắt Đầu Quét Face ID & Nút Bấm Chụp Ngay Thủ Công -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <!-- Nút tự động quét -->
+                            <Button Grid.Column="0"
+                                    Style="{StaticResource PrimaryBtn}"
+                                    Command="{Binding StartCaptureCommand}"
+                                    Content="{Binding StartCaptureButtonText}"
+                                    Height="38"
+                                    FontSize="13"
+                                    FontWeight="700" />
+                            <!-- Nút thủ công: Chụp ngay góc này -->
+                            <Button Grid.Column="2"
+                                    Background="#FFF7ED"
+                                    Foreground="#EA580C"
+                                    BorderBrush="#FDBA74"
+                                    BorderThickness="1.5"
+                                    FontWeight="700"
+                                    FontSize="12"
+                                    Height="38"
+                                    Padding="14,0"
+                                    Cursor="Hand"
+                                    Command="{Binding CaptureCurrentPoseCommand}">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="8" />
+                                    </Style>
+                                </Button.Resources>
+                                <TextBlock Text="📸 Chụp ngay góc này" VerticalAlignment="Center" />
+                            </Button>
+                        </Grid>
 
                         <!-- 2. BỘ HƯỚNG DẪN XOAY GÓC MẶT (VISUAL ANGLE GUIDE) -->
                         <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,0,0,10">
@@ -373,6 +400,7 @@
                 </Grid>
             </Border>
         </Grid>
+        </ScrollViewer>
 
         <!-- Bottom Action Bar -->
         <Border Grid.Row="2" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
