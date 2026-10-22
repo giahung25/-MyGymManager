@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using MyGymManager.Core.Entities;
 using MyGymManager.Core.Events;
 using MyGymManager.Core.Interfaces;
+using MyGymManager.Core.Models;
 using MyGymManager.Data;
 using MyGymManager.Infrastructure.AI;
 using MyGymManager.Infrastructure.Camera;
@@ -61,6 +62,49 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private bool _isInitialized = false;
     // Cờ nguyên tử chống Dispatcher Queue Flooding (0: Rảnh, 1: Đang bận render UI)
     private int _isRenderingUi = 0;
+    // Bounding Box Face Detection Overlay
+    private bool _isFaceDetected = false;
+    private double _faceRectLeft = 0;
+    private double _faceRectTop = 0;
+    private double _faceRectWidth = 0;
+    private double _faceRectHeight = 0;
+    private string _faceBoxLabel = "FACE DETECTED";
+
+    public bool IsFaceDetected
+    {
+        get => _isFaceDetected;
+        set => SetField(ref _isFaceDetected, value);
+    }
+
+    public double FaceRectLeft
+    {
+        get => _faceRectLeft;
+        set => SetField(ref _faceRectLeft, value);
+    }
+
+    public double FaceRectTop
+    {
+        get => _faceRectTop;
+        set => SetField(ref _faceRectTop, value);
+    }
+
+    public double FaceRectWidth
+    {
+        get => _faceRectWidth;
+        set => SetField(ref _faceRectWidth, value);
+    }
+
+    public double FaceRectHeight
+    {
+        get => _faceRectHeight;
+        set => SetField(ref _faceRectHeight, value);
+    }
+
+    public string FaceBoxLabel
+    {
+        get => _faceBoxLabel;
+        set => SetField(ref _faceBoxLabel, value);
+    }
 
     // Manual checkin
     private string _manualPhoneNumber = string.Empty;
@@ -311,8 +355,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             _attendanceCoordinator.MemberIdentified += OnMemberIdentified;
             _attendanceCoordinator.UnidentifiedFaceDetected += OnUnidentifiedFaceDetected;
+            _attendanceCoordinator.FaceDetected += OnFaceDetected;
         }
-
         // Khởi động đồng hồ hệ thống cập nhật mỗi giây
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _clockTimer.Tick += (s, e) => UpdateClock();
@@ -483,6 +527,34 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
             StatusMessage = $"Phát hiện khuôn mặt lạ (Score: {score:F2}). Nhấn '+ Đăng ký Face ID mới' để tạo hồ sơ.";
             _audioService?.PlayUnidentifiedFace();
+        });
+    }
+
+    /// <summary>
+    /// Cập nhật vị trí Bounding Box hình chữ nhật màu cam quanh khuôn mặt khi phát hiện.
+    /// </summary>
+    private void OnFaceDetected(object? sender, FaceBox? face)
+    {
+        Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
+        {
+            if (face == null)
+            {
+                IsFaceDetected = false;
+                return;
+            }
+
+            // Tỷ lệ scale từ Frame 1280x720 sang khung hiển thị UI ~490x360
+            const double containerW = 490.0;
+            const double containerH = 360.0;
+            double scaleX = containerW / 1280.0;
+            double scaleY = containerH / 720.0;
+
+            FaceRectLeft = Math.Max(0, face.X1 * scaleX);
+            FaceRectTop = Math.Max(0, face.Y1 * scaleY);
+            FaceRectWidth = Math.Max(20, (face.X2 - face.X1) * scaleX);
+            FaceRectHeight = Math.Max(20, (face.Y2 - face.Y1) * scaleY);
+            FaceBoxLabel = $"FACE DETECTED ({face.Score * 100:F0}%)";
+            IsFaceDetected = true;
         });
     }
 
@@ -755,7 +827,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            var registerVm = new RegisterMemberViewModel(_cameraService, _faceEngine, _dbContext, _attendanceCoordinator);
+            var registerVm = new RegisterMemberViewModel(_cameraService, _faceEngine, _dbContext, _attendanceCoordinator, _audioService);
             var window = new Views.RegisterMemberWindow(registerVm)
             {
                 Owner = Application.Current?.MainWindow

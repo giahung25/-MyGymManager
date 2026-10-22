@@ -102,4 +102,27 @@ public class AudioNotificationService
             }
         });
     }
+
+    /// <summary>
+    /// Phát âm thanh bip mỗi lần tự động chụp thành công 1 mẫu khuôn mặt (1/3, 2/3, 3/3).
+    /// Tần số tăng dần theo từng mẫu: Mẫu 1 (1300Hz), Mẫu 2 (1600Hz), Mẫu 3 (1900Hz).
+    /// </summary>
+    public void PlayCaptureBeep(int sampleNumber)
+    {
+        _ = Task.Run(() =>
+        {
+            lock (_audioLock)
+            {
+                try
+                {
+                    int freq = Math.Clamp(1000 + sampleNumber * 300, 1000, 2200);
+                    Console.Beep(freq, 130);
+                }
+                catch
+                {
+                    try { SystemSounds.Beep.Play(); } catch { }
+                }
+            }
+        });
+    }
 }

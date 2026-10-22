@@ -19,6 +19,7 @@
         <SolidColorBrush x:Key="BrushTextPrimary" Color="#111827" />
         <SolidColorBrush x:Key="BrushTextSecondary" Color="#4B5563" />
         <SolidColorBrush x:Key="BrushTextMuted" Color="#9CA3AF" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
         <Style x:Key="DialogCard" TargetType="Border">
             <Setter Property="Background" Value="#FFFFFF" />
@@ -180,62 +181,92 @@
                     </Grid>
 
                     <!-- Khung Video Camera Live có Oval Guide -->
+                    <!-- Khung Video Camera Live có Bounding Box Cam #FF6B00 (Chỉ hiện khi có mặt) -->
                     <Border Grid.Row="1" Background="#111827" CornerRadius="10" ClipToBounds="True" Margin="0,0,0,12">
                         <Grid>
                             <Image Source="{Binding CameraPreview}" Stretch="UniformToFill" />
 
-                            <!-- Khung Oval Hướng Dẫn Căn Chỉnh Mặt -->
-                            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Ellipse Width="150" Height="200"
-                                         Stroke="{StaticResource BrushPrimaryOrange}"
-                                         StrokeThickness="2"
-                                         StrokeDashArray="4 2">
-                                    <Ellipse.Effect>
-                                        <DropShadowEffect Color="#FF6B00" BlurRadius="10" Opacity="0.5" ShadowDepth="0" />
-                                    </Ellipse.Effect>
-                                </Ellipse>
-                            </Grid>
-
-                            <!-- Label nhắc nhở -->
-                            <Border Background="#90000000" CornerRadius="12" Padding="10,4" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,12">
-                                <TextBlock Text="Nhìn thẳng vào khung oval và bấm 'Chụp khuôn mặt'" FontSize="11" FontWeight="600" Foreground="#FFFFFF" />
-                            </Border>
+                            <!-- Bounding Box Canvas Overlay -->
+                            <Canvas IsHitTestVisible="False">
+                                <Border Canvas.Left="{Binding FaceRectLeft}"
+                                        Canvas.Top="{Binding FaceRectTop}"
+                                        Width="{Binding FaceRectWidth}"
+                                        Height="{Binding FaceRectHeight}"
+                                        BorderBrush="#FF6B00"
+                                        BorderThickness="2.5"
+                                        CornerRadius="6"
+                                        Visibility="{Binding IsFaceDetected, Converter={StaticResource BoolToVis}}">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#FF6B00" BlurRadius="8" Opacity="0.6" ShadowDepth="0" />
+                                    </Border.Effect>
+                                    <!-- Nhãn FACE DETECTED -->
+                                    <Border Background="#FF6B00"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Top"
+                                            Margin="0,-22,0,0"
+                                            Padding="6,2"
+                                            CornerRadius="4">
+                                        <TextBlock Text="{Binding FaceBoxLabel}" FontSize="10" FontWeight="700" Foreground="#FFFFFF" />
+                                    </Border>
+                                </Border>
+                            </Canvas>
                         </Grid>
                     </Border>
 
-                    <!-- Điều khiển chụp & Preview mặt đã cắt -->
+                    <!-- Thanh Tiến Trình Auto-Capture & Preview Ảnh Mẫu -->
                     <Grid Grid.Row="2">
-                        <Grid.ColumnDefinitions>
-                            <!-- Ảnh mặt vừa chụp -->
-                            <ColumnDefinition Width="80" />
-                            <!-- Nút chụp & Thông báo trạng thái -->
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                        <!-- Preview ảnh khuôn mặt đã trích xuất -->
-                        <Border Grid.Column="0" Width="72" Height="72" CornerRadius="8" Background="#F3F4F6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" ClipToBounds="True">
-                            <Grid>
-                                <Image Source="{Binding CapturedFaceImage}" Stretch="UniformToFill" />
-                                <TextBlock Text="Chưa chụp" FontSize="10" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasFaceVector}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </Grid>
-                        </Border>
+                        <!-- Thanh ProgressBar tự động quét 3 mẫu Face ID (0/3 -> 1/3 -> 2/3 -> 3/3) -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <Grid Margin="0,0,0,5">
+                                    <TextBlock Text="Tiến trình tự động quét Face ID (3 mẫu):" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" />
+                                    <TextBlock Text="{Binding ProgressText}" FontSize="12" FontWeight="800" Foreground="{StaticResource BrushPrimaryOrange}" HorizontalAlignment="Right" />
+                                </Grid>
+                                <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="8" Foreground="{StaticResource BrushPrimaryOrange}" Background="#E5E7EB" BorderThickness="0" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource SecondaryBtn}" Command="{Binding ResetCaptureCommand}" Content="Quét lại từ đầu" Height="30" Padding="8,0" Margin="12,12,0,0" VerticalAlignment="Bottom" />
+                        </Grid>
 
-                        <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                            <!-- Nút Chụp khuôn mặt -->
-                            <Button Style="{StaticResource PrimaryBtn}" Command="{Binding CaptureFaceCommand}" Content="📸 Chụp Khuôn Mặt (Trích xuất 512-d)" Height="38" Margin="0,0,0,6" />
-                            <!-- Trạng thái trích xuất vector -->
-                            <TextBlock Text="{Binding StatusMessage}" Foreground="{Binding StatusColor}" FontSize="12" FontWeight="600" TextWrapping="Wrap" />
-                        </StackPanel>
+                        <!-- Ảnh Crop & Thông báo trạng thái -->
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="64" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Ảnh khuôn mặt vừa chụp -->
+                            <Border Grid.Column="0" Width="60" Height="60" CornerRadius="8" Background="#F3F4F6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" ClipToBounds="True">
+                                <Grid>
+                                    <Image Source="{Binding CapturedFaceImage}" Stretch="UniformToFill" />
+                                    <TextBlock Text="Chờ quét" FontSize="10" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasFaceVector}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </Border>
+
+                            <!-- Dòng hướng dẫn và thông báo trạng thái -->
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding StatusMessage}" Foreground="{Binding StatusColor}" FontSize="12" FontWeight="700" TextWrapping="Wrap" />
+                                <TextBlock Text="Hệ thống tự động phát hiện mặt đạt chuẩn (Confidence &gt; 70%) và chụp 3 mẫu cách nhau 1 giây." FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,3,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Grid>
             </Border>

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using MyGymManager.Core.Entities;
 using MyGymManager.Core.Events;
 using MyGymManager.Core.Interfaces;
+using MyGymManager.Core.Models;
 using MyGymManager.Data;
 using OpenCvSharp;
 
@@ -60,6 +61,11 @@ public class AttendanceCoordinator : IDisposable
     /// </summary>
     public event EventHandler<float>? UnidentifiedFaceDetected;
 
+    /// <summary>
+    /// Sự kiện bắn ra vị trí Bounding Box của khuôn mặt nổi bật nhất trong khung hình (để UI vẽ bounding box trực tiếp).
+    /// Trả về null nếu không có khuôn mặt trong khung hình.
+    /// </summary>
+    public event EventHandler<FaceBox?>? FaceDetected;
     public AttendanceCoordinator(
         ICameraService cameraService,
         IFaceEngine faceEngine,
@@ -187,12 +193,17 @@ public class AttendanceCoordinator : IDisposable
     {
         if (frame.Empty() || _cachedMembers.IsEmpty)
             return;
-
         // 1. Phát hiện toàn bộ khuôn mặt trong frame
         var detectedFaces = await _faceEngine.DetectFacesAsync(frame).ConfigureAwait(false);
         if (detectedFaces == null || detectedFaces.Count == 0)
+        {
+            FaceDetected?.Invoke(this, null);
             return;
+        }
 
+        // Bắn sự kiện vị trí khuôn mặt nổi bật nhất để UI vẽ Bounding Box
+        var primaryFace = detectedFaces.OrderByDescending(f => f.Width * f.Height).First();
+        FaceDetected?.Invoke(this, primaryFace);
         foreach (var faceBox in detectedFaces)
         {
             // Cắt vùng khuôn mặt an toàn (tránh tràn viền ảnh gốc)

@@ -33,6 +33,7 @@
         <SolidColorBrush x:Key="BrushTextPrimary" Color="{StaticResource ColorTextPrimary}" />
         <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}" />
         <SolidColorBrush x:Key="BrushTextMuted" Color="{StaticResource ColorTextMuted}" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
         <!-- Card Style with 12px CornerRadius -->
         <Style x:Key="ModernCard" TargetType="Border">
@@ -443,23 +444,30 @@
                                                 <!-- Video Stream từ OpenCvSharp -->
                                                 <Image Source="{Binding CameraFeed}" Stretch="UniformToFill" />
 
-                                                <!-- Guide Oval Overlay (Khung Oval Hướng Dẫn Căn Chỉnh Mặt) -->
-                                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <Ellipse Width="200" Height="270"
-                                                             Stroke="{StaticResource BrushPrimaryOrange}"
-                                                             StrokeThickness="2.5"
-                                                             StrokeDashArray="4 2">
-                                                        <Ellipse.Effect>
-                                                            <DropShadowEffect Color="#FF6B00" BlurRadius="12" Opacity="0.5" ShadowDepth="0" />
-                                                        </Ellipse.Effect>
-                                                    </Ellipse>
-                                                </Grid>
-
-                                                <!-- Nhãn nhắc nhở mờ ở đáy video -->
-                                                <Border Background="#80000000" CornerRadius="16" Padding="14,6"
-                                                        HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16">
-                                                    <TextBlock Text="Căn chỉnh khuôn mặt vào khung oval" FontSize="12" FontWeight="600" Foreground="#FFFFFF" />
-                                                </Border>
+                                                <!-- Bounding Box hình chữ nhật màu Cam #FF6B00 chỉ hiện lên khi có khuôn mặt -->
+                                                <Canvas IsHitTestVisible="False">
+                                                    <Border Canvas.Left="{Binding FaceRectLeft}"
+                                                            Canvas.Top="{Binding FaceRectTop}"
+                                                            Width="{Binding FaceRectWidth}"
+                                                            Height="{Binding FaceRectHeight}"
+                                                            BorderBrush="{StaticResource BrushPrimaryOrange}"
+                                                            BorderThickness="2.5"
+                                                            CornerRadius="6"
+                                                            Visibility="{Binding IsFaceDetected, Converter={StaticResource BoolToVis}}">
+                                                        <Border.Effect>
+                                                            <DropShadowEffect Color="#FF6B00" BlurRadius="10" Opacity="0.6" ShadowDepth="0" />
+                                                        </Border.Effect>
+                                                        <!-- Nhãn FACE DETECTED -->
+                                                        <Border Background="{StaticResource BrushPrimaryOrange}"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Top"
+                                                                Margin="0,-22,0,0"
+                                                                Padding="6,2"
+                                                                CornerRadius="4">
+                                                            <TextBlock Text="{Binding FaceBoxLabel}" FontSize="10" FontWeight="700" Foreground="#FFFFFF" />
+                                                        </Border>
+                                                    </Border>
+                                                </Canvas>
                                             </Grid>
                                         </Border>
 
