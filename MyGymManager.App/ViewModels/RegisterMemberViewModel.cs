@@ -386,7 +386,19 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         double scaleX = containerW / 1280.0;
         double scaleY = containerH / 720.0;
 
-        await Application.Current.Dispatcher.InvokeAsync(() =>
+        if (Application.Current?.Dispatcher != null)
+        {
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                FaceRectLeft = Math.Max(0, bestFace.X1 * scaleX);
+                FaceRectTop = Math.Max(0, bestFace.Y1 * scaleY);
+                FaceRectWidth = Math.Max(20, bestFace.Width * scaleX);
+                FaceRectHeight = Math.Max(20, bestFace.Height * scaleY);
+                FaceBoxLabel = $"FACE DETECTED ({bestFace.Score * 100:F0}%)";
+                IsFaceDetected = true;
+            });
+        }
+        else
         {
             FaceRectLeft = Math.Max(0, bestFace.X1 * scaleX);
             FaceRectTop = Math.Max(0, bestFace.Y1 * scaleY);
@@ -394,7 +406,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             FaceRectHeight = Math.Max(20, bestFace.Height * scaleY);
             FaceBoxLabel = $"FACE DETECTED ({bestFace.Score * 100:F0}%)";
             IsFaceDetected = true;
-        });
+        }
 
         // 2. Kiểm tra tiêu chuẩn chất lượng khuôn mặt (Confidence > 0.70 & Width > 80px)
         bool isQualified = bestFace.Score > 0.70f && bestFace.Width > 80f && bestFace.Height > 80f;
@@ -433,7 +445,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             // Phát âm thanh bip theo thứ tự mẫu 1, 2, 3
             _audioService.PlayCaptureBeep(currentCount);
 
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            void UpdateUiProgress()
             {
                 CapturedFaceImage = faceBitmap;
                 ProgressValue = (currentCount / 3.0) * 100.0;
@@ -455,7 +467,16 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
                     OnPropertyChanged(nameof(IsAutoCaptureComplete));
                     OnPropertyChanged(nameof(CanSave));
                 }
-            });
+            }
+
+            if (Application.Current?.Dispatcher != null)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(UpdateUiProgress);
+            }
+            else
+            {
+                UpdateUiProgress();
+            }
         }
         else if (_capturedVectors.Count < 3)
         {
