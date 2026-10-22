@@ -1,7 +1,7 @@
 # BỘ KỊCH BẢN KIỂM THỬ TOÀN DIỆN (TEST SCENARIOS & QA SUITE)
 ## DỰ ÁN: MYGYMMANAGER DESKTOP (.NET 10 WPF STANDALONE)
 
-Tài liệu này chuẩn hóa toàn bộ 10 kịch bản kiểm thử (Test Cases) trọng yếu cùng kịch bản tích hợp đầu cuối (E2E) của hệ thống quản lý phòng Gym độc lập, bao gồm các tầng: **Local SQLite Database**, **Core Vision & AI InsightFace**, **Attendance Coordinator Observer**, **Tính năng Auto Face Capture**, và **Giao diện Người dùng WPF Fluent (MVVM)**.
+Tài liệu này chuẩn hóa toàn bộ 12 kịch bản kiểm thử (Test Cases) trọng yếu cùng kịch bản tích hợp đầu cuối (E2E) của hệ thống quản lý phòng Gym độc lập, bao gồm các tầng: **Local SQLite Database**, **Core Vision & AI InsightFace**, **Attendance Coordinator Observer**, **Tính năng Auto Face Capture**, **Quản trị CRUD Gói tập & Hội viên**, và **Giao diện Người dùng WPF Fluent (MVVM)**.
 
 ---
 
@@ -19,8 +19,10 @@ Tài liệu này chuẩn hóa toàn bộ 10 kịch bản kiểm thử (Test Case
 | **TC08** | Đăng ký Hội viên mới & Tự động Cập nhật RAM Cache | Domain / DI / Cache | High | 🟢 **PASS** |
 | **TC09** | Khung Chữ Nhật Dynamic Bounding Box (Loại bỏ Oval tĩnh) | WPF Canvas / SCRFD HUD | High | 🟢 **PASS** |
 | **TC10** | Tự động Thu thập Face ID (Auto-Capture 3 Mẫu) & Âm thanh Escalating | AI Pipeline / UX Feedback | Critical | 🟢 **PASS** |
+| **TC11** | Quản trị Gói tập (CRUD Packages): Thêm mới, Chỉnh sửa & Xóa an toàn | Data / WPF Modal / Validation | High | 🟢 **PASS** |
+| **TC12** | Quản trị Hội viên (CRUD Members): Sửa hồ sơ, Gia hạn & Đồng bộ RAM Cache | Rich Domain / Cache Observer | Critical | 🟢 **PASS** |
 
-**Tổng kết:** **10/10 Test Cases ĐẠT (100% PASS)** • Build **0 Warning, 0 Error**.
+**Tổng kết:** **12/12 Test Cases ĐẠT (100% PASS)** • Build **0 Warning, 0 Error**.
 
 ---
 
@@ -219,6 +221,53 @@ Tài liệu này chuẩn hóa toàn bộ 10 kịch bản kiểm thử (Test Case
   - Tần số âm thanh bíp phân biệt rõ rệt qua 3 cấp độ (1300Hz, 1600Hz, 1900Hz) giúp người dùng nhận biết ngay cả khi không nhìn màn hình.
   - Multi-Template được lưu thành công với 3 vector 512-d giúp tăng cường độ chính xác khi điểm danh thực tế.
 - **Kết quả thực tế:** **PASS** (Luồng Task nền xử lý auto-capture độc lập, `PlayCaptureBeep` hoạt động mượt mà).
+
+---
+
+### TC11: Quản trị Gói tập (CRUD Packages) — Thêm mới, Chỉnh sửa & Xóa an toàn
+- **Mục tiêu:** Xác minh chức năng quản lý danh mục gói tập trong Tab "Gói tập" của [`MainWindow.xaml`](file:///D:/PhucGymDesktop/MyGymManager.App/MainWindow.xaml): cho phép tạo mới gói tập (`AddPackageCommand`), chỉnh sửa thông tin gói hiện hữu (`EditPackageCommand`) và xóa gói tập kèm hộp thoại xác nhận cảnh báo (`DeletePackageCommand`).
+- **Điều kiện tiên quyết:**
+  - Ứng dụng đang chạy ở màn hình chính, chuyển sang Tab "Gói tập".
+- **Dữ liệu kiểm thử (Test Data):**
+  - Gói mới: Tên `"Gói Hè Sinh Viên"`, Thời lượng `45` ngày, Đơn giá `600,000` VNĐ, Mô tả `"Dành riêng cho học sinh - sinh viên kỳ nghỉ hè"`.
+  - Dữ liệu chỉnh sửa: Nâng thời lượng lên `60` ngày, đơn giá `750,000` VNĐ.
+- **Các bước thực hiện:**
+  1. Bấm nút `+ Tạo gói tập mới`: Cửa sổ `PackageEditWindow` hiển thị modal với tiêu đề "Tạo Gói Tập Mới".
+  2. Nhập thông tin gói mới và bấm `Lưu gói tập`: Gói được thêm vào SQLite `phuc_gym.db` và xuất hiện tức thì trong DataGrid `PackagesList`.
+  3. Tại dòng của gói vừa tạo, bấm nút `Sửa` trong cột "Thao tác": Cửa sổ hiển thị dữ liệu hiện tại với tiêu đề "Chỉnh Sửa Gói Tập".
+  4. Sửa thành 60 ngày và 750,000 VNĐ rồi bấm `Lưu gói tập`: DataGrid cập nhật thông tin mới.
+  5. Bấm nút `Xóa` trong cột "Thao tác": Hộp thoại xác nhận xuất hiện hỏi *"Bạn có chắc chắn muốn xóa gói tập...?"*.
+  6. Chọn `Yes`: Gói tập bị xóa khỏi CSDL SQLite và biến mất khỏi DataGrid.
+- **Kết quả mong đợi:**
+  - Không cho phép lưu nếu tên trống hoặc thời lượng $\le 0$ hoặc đơn giá $< 0$.
+  - Nút Xóa có cơ chế hỏi lại bảo vệ an toàn dữ liệu người dùng.
+  - Cập nhật tức thời lên giao diện mà không cần reload ứng dụng.
+- **Kết quả thực tế:** **PASS** (Modal và ViewModel hoạt động chuẩn mực theo Rich Domain Model).
+
+---
+
+### TC12: Quản trị Hội viên (CRUD Members) — Sửa hồ sơ, Gia hạn & Đồng bộ RAM Cache
+- **Mục tiêu:** Xác minh chức năng quản lý danh sách hội viên trong Tab "Hội viên": cho phép chỉnh sửa thông tin cá nhân (Họ tên, SĐT), thay đổi trạng thái kích hoạt / khóa thẻ (`IsActive`), gia hạn thời hạn tập qua nghiệp vụ Rich Domain Model (`member.Renew(days)`), và xóa vĩnh viễn hội viên kèm xóa ngay lập tức khỏi RAM Cache (`AttendanceCoordinator.RemoveMemberFromCache`).
+- **Điều kiện tiên quyết:**
+  - Ứng dụng có sẵn dữ liệu hội viên test trong SQLite và RAM Cache.
+- **Dữ liệu kiểm thử (Test Data):**
+  - Hội viên: `Lê Hoàng Cường` (thẻ đang hết hạn).
+  - Nghiệp vụ gia hạn: Chọn `Gia hạn gói tập`, số ngày `90`.
+- **Các bước thực hiện:**
+  1. Chuyển sang Tab "Hội viên" trên giao diện chính.
+  2. Tìm hội viên `Lê Hoàng Cường`, bấm nút `Sửa` trong cột "Thao tác": Cửa sổ `MemberEditWindow` mở ra hiển thị đầy đủ thông tin cũ và trạng thái *"❌ Đã hết hạn"*.
+  3. Tích chọn `Gia hạn gói tập`, chọn mức nhanh `90 ngày` và bấm `Lưu thay đổi`:
+     - Phương thức miền `member.Renew(90)` được gọi: `EndDate` được cộng thêm 90 ngày tính từ hiện tại.
+     - Dữ liệu lưu vào SQLite.
+     - `AttendanceCoordinator.UpdateMemberInCache(member)` cập nhật nóng RAM Cache.
+  4. Quét lại mặt của hội viên Lê Hoàng Cường tại màn hình chính: Hệ thống chuyển từ cảnh báo Thẻ Đỏ sang Thẻ Xanh hợp lệ ngay tức khắc.
+  5. Thử nghiệm chức năng Khóa thẻ (`IsActive = false`): `RemoveMemberFromCache(id)` loại bỏ hội viên khỏi RAM, camera từ chối điểm danh.
+  6. Thử nghiệm nút `Xóa` tại dòng hội viên: Hộp thoại xác nhận cảnh báo dữ liệu Face ID sẽ bị xóa hoàn toàn. Bấm `Yes`, hội viên bị xóa sạch trong CSDL SQLite và RAM Cache.
+- **Kết quả mong đợi:**
+  - Kiểm tra tính duy nhất của Số điện thoại: không cho phép trùng với hội viên khác.
+  - Nghiệp vụ `Renew` và `Deactivate` tuân thủ nguyên tắc đóng gói Rich Domain Model.
+  - Đồng bộ hai chiều hoàn hảo giữa SQLite và in-memory dictionary trong `AttendanceCoordinator`.
+- **Kết quả thực tế:** **PASS** (Toàn bộ chu trình CRUD và đồng bộ RAM Cache hoạt động hoàn hảo).
 
 ---
 

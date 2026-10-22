@@ -127,6 +127,16 @@ public class AttendanceCoordinator : IDisposable
     }
 
     /// <summary>
+    /// Xóa hoàn toàn hội viên khỏi RAM cache (dùng khi xóa hội viên khỏi CSDL).
+    /// </summary>
+    public void RemoveMemberFromCache(Guid memberId)
+    {
+        _cachedMembers.TryRemove(memberId, out _);
+        _lastCheckInTimes.TryRemove(memberId, out _);
+        Debug.WriteLine($"[AttendanceCoordinator] Đã xóa hội viên {memberId} khỏi RAM Cache.");
+    }
+
+    /// <summary>
     /// Bắt đầu lắng nghe luồng frame từ CameraService.
     /// </summary>
     public void Start()

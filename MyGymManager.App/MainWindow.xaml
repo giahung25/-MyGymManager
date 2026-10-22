@@ -730,6 +730,30 @@
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Face ID Templates" Binding="{Binding FaceVectors.Count, StringFormat='{}{0} góc'}" Width="140" />
+                                    <DataGridTemplateColumn Header="Thao tác" Width="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button Content="Sửa"
+                                                            Command="{Binding DataContext.EditMemberCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource SecondaryButton}"
+                                                            Height="28" Padding="10,0" Margin="0,0,6,0" FontSize="11" />
+                                                    <Button Content="Xóa"
+                                                            Command="{Binding DataContext.DeleteMemberCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="#FEE2E2" Foreground="#B91C1C" BorderBrush="#FECACA" BorderThickness="1"
+                                                            FontWeight="600" Height="28" Padding="10,0" FontSize="11" Cursor="Hand">
+                                                        <Button.Resources>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="CornerRadius" Value="6" />
+                                                            </Style>
+                                                        </Button.Resources>
+                                                    </Button>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>
@@ -768,6 +792,7 @@
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
                                 <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Command="{Binding RefreshPackagesCommand}" Height="42" Margin="0,0,10,0" />
+                                <Button Style="{StaticResource PrimaryButton}" Content="+ Tạo gói tập mới" Command="{Binding AddPackageCommand}" Height="42" />
                             </StackPanel>
                         </Grid>
 
@@ -780,6 +805,30 @@
                                     <DataGridTextColumn Header="Đơn giá (VNĐ)" Binding="{Binding Price, StringFormat='{}{0:#,##0} VNĐ'}" Width="180" />
                                     <DataGridTextColumn Header="Mô tả chi tiết" Binding="{Binding Description}" Width="*" />
                                     <DataGridTextColumn Header="Số hội viên" Binding="{Binding Members.Count, StringFormat='{}{0} người'}" Width="120" />
+                                    <DataGridTemplateColumn Header="Thao tác" Width="140">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button Content="Sửa"
+                                                            Command="{Binding DataContext.EditPackageCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource SecondaryButton}"
+                                                            Height="28" Padding="10,0" Margin="0,0,6,0" FontSize="11" />
+                                                    <Button Content="Xóa"
+                                                            Command="{Binding DataContext.DeletePackageCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="#FEE2E2" Foreground="#B91C1C" BorderBrush="#FECACA" BorderThickness="1"
+                                                            FontWeight="600" Height="28" Padding="10,0" FontSize="11" Cursor="Hand">
+                                                        <Button.Resources>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="CornerRadius" Value="6" />
+                                                            </Style>
+                                                        </Button.Resources>
+                                                    </Button>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Border>

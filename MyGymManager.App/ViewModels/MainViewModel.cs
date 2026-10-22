@@ -322,6 +322,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand RefreshMembersCommand { get; }
     public ICommand RefreshPackagesCommand { get; }
     public ICommand NavigateTabCommand { get; }
+    public ICommand AddPackageCommand { get; }
+    public ICommand EditPackageCommand { get; }
+    public ICommand DeletePackageCommand { get; }
+    public ICommand EditMemberCommand { get; }
+    public ICommand DeleteMemberCommand { get; }
 
     /// <summary>
     /// Constructor DI chính nhận các service được inject từ container.
@@ -345,6 +350,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         RefreshMembersCommand = new RelayCommand(async () => await LoadMembersAsync());
         RefreshPackagesCommand = new RelayCommand(async () => await LoadPackagesAsync());
         NavigateTabCommand = new RelayCommand<int>(tabIndex => SelectedTabIndex = tabIndex);
+        AddPackageCommand = new RelayCommand(OnAddPackage);
+        EditPackageCommand = new RelayCommand<Package>(OnEditPackage);
+        DeletePackageCommand = new RelayCommand<Package>(async (pkg) => await OnDeletePackageAsync(pkg));
+        EditMemberCommand = new RelayCommand<Member>(OnEditMember);
+        DeleteMemberCommand = new RelayCommand<Member>(async (m) => await OnDeleteMemberAsync(m));
 
         // Lắng nghe sự kiện từ CameraService
         if (_cameraService != null)
@@ -845,6 +855,107 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             MessageBox.Show($"Lỗi khi mở giao diện đăng ký: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnAddPackage()
+    {
+        if (_dbContext == null) return;
+
+        var vm = new PackageEditViewModel(_dbContext);
+        var window = new Views.PackageEditWindow(vm) { Owner = Application.Current?.MainWindow };
+        if (window.ShowDialog() == true && vm.ResultPackage != null)
+        {
+            PackagesList.Add(vm.ResultPackage);
+            StatusMessage = $"Đã thêm mới gói tập '{vm.ResultPackage.Name}' thành công!";
+            StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+        }
+    }
+
+    private void OnEditPackage(Package? package)
+    {
+        if (_dbContext == null || package == null) return;
+
+        var vm = new PackageEditViewModel(_dbContext, package);
+        var window = new Views.PackageEditWindow(vm) { Owner = Application.Current?.MainWindow };
+        if (window.ShowDialog() == true)
+        {
+            _ = LoadPackagesAsync();
+            StatusMessage = $"Đã cập nhật thông tin gói tập '{package.Name}' thành công!";
+            StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+        }
+    }
+
+    private async Task OnDeletePackageAsync(Package? package)
+    {
+        if (_dbContext == null || package == null) return;
+
+        var confirm = MessageBox.Show(
+            $"Bạn có chắc chắn muốn xóa gói tập '{package.Name}' không?\nCác hội viên đang dùng gói này sẽ chuyển về trạng thái Chưa có gói.",
+            "Xác nhận xóa gói tập",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        try
+        {
+            _dbContext.Packages.Remove(package);
+            await _dbContext.SaveChangesAsync();
+
+            PackagesList.Remove(package);
+            StatusMessage = $"Đã xóa gói tập '{package.Name}' khỏi hệ thống.";
+            StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi khi xóa gói tập: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnEditMember(Member? member)
+    {
+        if (_dbContext == null || _attendanceCoordinator == null || member == null) return;
+
+        var vm = new MemberEditViewModel(member, _dbContext, _attendanceCoordinator);
+        var window = new Views.MemberEditWindow(vm) { Owner = Application.Current?.MainWindow };
+        if (window.ShowDialog() == true)
+        {
+            _ = LoadMembersAsync();
+            StatusMessage = $"Đã cập nhật hồ sơ hội viên '{member.FullName}' thành công!";
+            StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+        }
+    }
+
+    private async Task OnDeleteMemberAsync(Member? member)
+    {
+        if (_dbContext == null || _attendanceCoordinator == null || member == null) return;
+
+        var confirm = MessageBox.Show(
+            $"Bạn có chắc chắn muốn xóa hội viên '{member.FullName}' (SĐT: {member.PhoneNumber}) không?\nToàn bộ lịch sử điểm danh và dữ liệu Face ID của hội viên này sẽ bị xóa hoàn toàn.",
+            "Xác nhận xóa hội viên",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        try
+        {
+            _dbContext.Members.Remove(member);
+            await _dbContext.SaveChangesAsync();
+
+            // Xóa khỏi RAM Cache của AttendanceCoordinator
+            _attendanceCoordinator.RemoveMemberFromCache(member.Id);
+
+            // Cập nhật ObservableCollection trên UI
+            MembersList.Remove(member);
+
+            StatusMessage = $"Đã xóa hội viên '{member.FullName}' khỏi hệ thống.";
+            StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi khi xóa hội viên: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
