@@ -17,7 +17,7 @@ Tài liệu này chuẩn hóa toàn bộ 12 kịch bản kiểm thử (Test Case
 | **TC06** | Phát hiện Khách lạ / Chưa ghi danh FaceID (`Sim < 0.65`) | AI Core / SCRFD | High | 🟢 **PASS** |
 | **TC07** | Cơ chế Debounce Cooldown Chống Ghi đúp Check-in | Concurrency / Data Guard | Critical | 🟢 **PASS** |
 | **TC08** | Đăng ký Hội viên mới & Tự động Cập nhật RAM Cache | Domain / DI / Cache | High | 🟢 **PASS** |
-| **TC09** | Bộ Hướng Dẫn Góc Mặt & Xoay 3 Tư Thế (Angle Guide & Pose Matching) | AI Pose Matching / WPF HUD | High | 🟢 **PASS** |
+| **TC09** | Bộ Hướng Dẫn Góc Mặt, Xoay 3 Tư Thế & Nút Chụp Thủ Công (Pose Matching & Manual Override) | AI Pose Matching / WPF HUD | High | 🟢 **PASS** |
 | **TC10** | Tự động Thu thập Face ID (Auto-Capture 3 Mẫu) & Âm thanh Escalating | AI Pipeline / UX Feedback | Critical | 🟢 **PASS** |
 | **TC11** | Quản trị Gói tập (CRUD Packages): Thêm mới, Chỉnh sửa & Xóa an toàn | Data / WPF Modal / Validation | High | 🟢 **PASS** |
 | **TC12** | Quản trị Hội viên (CRUD Members): Sửa hồ sơ, Gia hạn & Đồng bộ RAM Cache | Rich Domain / Cache Observer | Critical | 🟢 **PASS** |
@@ -180,34 +180,38 @@ Tài liệu này chuẩn hóa toàn bộ 12 kịch bản kiểm thử (Test Case
 
 ---
 
-### TC09: Bộ Hướng Dẫn Góc Mặt & Xoay 3 Tư Thế (Angle Guide & Pose Matching Enrollment)
-- **Mục tiêu:** Xác minh tính năng hướng dẫn xoay góc mặt trực quan (Visual Angle Guide) và thuật toán ước lượng góc Yaw qua 5 Landmarks của SCRFD (`landmarks[0]` mắt trái, `landmarks[1]` mắt phải, `landmarks[2]` mũi) với công thức `yawRatio = distLeft / (distLeft + distRight)`. Hệ thống dẫn dắt người dùng qua 3 tư thế chuẩn mực:
-  1. **Góc 1/3 (Chính diện - Center):** `0.42 <= ratio <= 0.58`.
-  2. **Góc 2/3 (Xoay Trái - TurnLeft):** `ratio < 0.38`.
-  3. **Góc 3/3 (Xoay Phải - TurnRight):** `ratio > 0.62`.
-  Chỉ khi người dùng xoay đúng góc mục tiêu và giữ yên ổn định tối thiểu 600ms, hệ thống mới đếm lùi, trích xuất vector 512-d và phát âm thanh bíp hoàn thành.
+### TC09: Bộ Hướng Dẫn Góc Mặt, Xoay 3 Tư Thế & Nút Chụp Thủ Công (Angle Guide, Pose Matching & Manual Override)
+- **Mục tiêu:** Xác minh tính năng hướng dẫn xoay góc mặt trực quan (Visual Angle Guide), thuật toán ước lượng góc Yaw qua 5 Landmarks của SCRFD (`landmarks[0]` mắt trái, `landmarks[1]` mắt phải, `landmarks[2]` mũi) với công thức `yawRatio = distLeft / (distLeft + distRight)`, cơ chế độc lập chiều webcam lật gương (`Math.Abs(ratio - 0.5f) > 0.08f`), thời gian khóa góc siêu nhạy 200ms, cùng **Nút Chụp Thủ Công "📸 Chụp ngay góc này" (Manual Override)** và bố cục **`ScrollViewer` chống tràn màn hình** trên laptop scale 125%/150%. Hệ thống dẫn dắt người dùng qua 3 tư thế chuẩn mực:
+  1. **Góc 1/3 (Chính diện - Center):** `Math.Abs(ratio - 0.5f) <= 0.08f` (tương đương `0.42 <= ratio <= 0.58`, Score >= 0.55).
+  2. **Góc 2/3 (Xoay Trái - TurnLeft):** `Math.Abs(ratio - 0.5f) > 0.08f` (Score >= 0.50, độc lập gương lật).
+  3. **Góc 3/3 (Xoay Phải - TurnRight):** `Math.Abs(ratio - 0.5f) > 0.08f` (Score >= 0.50, độc lập gương lật).
+  Hệ thống hỗ trợ 2 chế độ thu thập linh hoạt:
+  - **Tự động (Auto):** Giữ đúng góc trong 200ms $\rightarrow$ bíp chụp và chuyển góc kế tiếp.
+  - **Thủ công (Manual):** Bấm nút `📸 Chụp ngay góc này` $\rightarrow$ chụp ngay frame hiện tại và chuyển bước lập tức, không bao giờ bị kẹt.
 - **Điều kiện tiên quyết:**
   - Mở cửa sổ `RegisterMemberWindow`.
 - **Dữ liệu kiểm thử:**
-  - Người dùng đứng trước camera với các tư thế: Nhìn thẳng, Xoay mặt sang trái $\approx 15^\circ - 30^\circ$, Xoay mặt sang phải $\approx 15^\circ - 30^\circ$.
+  - Người dùng đứng trước camera với các tư thế: Nhìn thẳng, Xoay mặt sang trái $\approx 10^\circ - 30^\circ$, Xoay mặt sang phải $\approx 10^\circ - 30^\circ$.
+  - Màn hình laptop độ phân giải Full HD bật Windows Display Scale 125% hoặc 150%.
 - **Các bước thực hiện:**
   1. Mở `RegisterMemberWindow`, điền Họ tên, SĐT, chọn gói tập.
-  2. Bấm `⚡ Bắt Đầu Quét Face ID`:
+  2. Kiểm tra giao diện: Form 2 cột nằm trọn vẹn trong `ScrollViewer`, thanh cuộn dọc xuất hiện mượt mà khi cửa sổ bị co nhỏ, Bottom Action Bar luôn cố định.
+  3. Bấm `⚡ Bắt Đầu Quét Face ID`:
      - Thanh Pose Indicator Bar hiển thị 3 vùng `TRÁI` | `CHÍNH DIỆN` | `PHẢI`.
      - Vùng `CHÍNH DIỆN` sáng viền Cam thể thao (`IsTargetCenter = true`).
-     - Con trỏ chuyển động mượt mà bám theo góc quay đầu thực tế qua binding `PoseIndicatorPointerLeft`.
-  3. Nhìn thẳng vào camera: Con trỏ di chuyển vào vùng giữa, badge đổi sang màu xanh lá `#10B981` (`IsAngleMatched = true`). Giữ yên 600ms $\rightarrow$ Beep 1300Hz, tiến trình lên 33%, thanh chuyển hướng dẫn sang góc 2/3.
-  4. Hệ thống yêu cầu `Góc 2/3: Xoay nhẹ sang TRÁI (👈)` (`IsTargetLeft = true`).
-     - Người dùng xoay nhẹ mặt sang trái: Con trỏ trượt sang trái (`ratio < 0.38`).
-     - Badge đổi sang màu xanh lá. Giữ yên 600ms $\rightarrow$ Beep 1600Hz, tiến trình lên 66%, thanh chuyển sang góc 3/3.
-  5. Hệ thống yêu cầu `Góc 3/3: Xoay nhẹ sang PHẢI (👉)` (`IsTargetRight = true`).
-     - Người dùng xoay nhẹ mặt sang phải: Con trỏ trượt sang phải (`ratio > 0.62`).
-     - Badge đổi sang màu xanh lá. Giữ yên 600ms $\rightarrow$ Beep 1900Hz, tiến trình đạt 100%.
-  6. Sau khi đủ 3 góc: Hệ thống thông báo `✅ ĐÃ THU THẬP ĐỦ 3 GÓC MẶT (Thẳng - Trái - Phải)! Nhấn 'Lưu Hội Viên' để hoàn tất`, nút `Lưu Hội Viên` kích hoạt.
+     - Con trỏ chuyển động mượt mà bám theo góc quay đầu thực tế qua binding `PoseIndicatorPointerLeft` (throttled <= 25 FPS, không nghẽn Dispatcher).
+  4. Nhìn thẳng vào camera: Con trỏ di chuyển vào vùng giữa, badge đổi sang màu xanh lá `#10B981` (`IsAngleMatched = true`). Giữ yên 200ms $\rightarrow$ Beep 1300Hz, tiến trình lên 33%, thanh chuyển hướng dẫn sang góc 2/3.
+  5. Hệ thống yêu cầu `Góc 2/3: Xoay nhẹ sang TRÁI (👈)` (`IsTargetLeft = true`).
+     - Người dùng xoay nhẹ mặt: Độ lệch tâm `deviation > 0.08f` được kích hoạt ngay tức thì.
+     - Badge đổi sang màu xanh lá. Giữ yên 200ms $\rightarrow$ Beep 1600Hz, tiến trình lên 66%, thanh chuyển sang góc 3/3.
+  6. Tại bước 3, người dùng thử bấm nút thủ công `📸 Chụp ngay góc này`:
+     - Hệ thống chụp ngay lập tức frame camera hiện tại, trích xuất vector 512-d, phát tiếng Beep 1900Hz, tiến trình đạt 100%.
+  7. Sau khi đủ 3 góc: Hệ thống thông báo `✅ ĐÃ THU THẬP ĐỦ 3 GÓC MẶT! Nhấn 'Lưu Hội Viên' để hoàn tất`, nút `Lưu Hội Viên` kích hoạt.
 - **Kết quả mong đợi:**
-  - Thuật toán `CalculateYawRatio` có đầy đủ kiểm tra an toàn: null check, length check, divide by zero guard (`total <= 0.0001f`), `float.IsNaN` và `float.IsInfinity` check.
-  - Người dùng không thể thu thập 3 mẫu trùng 1 góc, đảm bảo Multi-Template đạt độ phủ góc quay đa dạng tối ưu.
-- **Kết quả thực tế:** **PASS** (Đã kiểm tra thuật toán toán học và luồng UI binding `PoseIndicatorPointerLeft`, `AngleIndicatorColor` hoạt động hoàn hảo).
+  - Nút bấm `📸 Chụp ngay góc này` phản hồi tức thì khi bấm, không chờ đợi bất kỳ bộ đếm thời gian nào.
+  - Thuật toán góc nghiêng không còn bị kẹt ở góc 2/3 hay 3/3 do lật gương webcam, phản hồi cực nhạy trong 200ms.
+  - `ScrollViewer` cuộn trơn tru, không bị tràn màn hình ở tỉ lệ hiển thị phóng to (125%/150%). Phím chụp màn hình Windows (Win + Shift + S / PrintScreen) không bị đơ giật.
+- **Kết quả thực tế:** **PASS** (Đã kiểm chứng luồng hoạt động tự động và thủ công, thuật toán lệch tâm và UI ScrollViewer hoàn hảo).
 
 ---
 
