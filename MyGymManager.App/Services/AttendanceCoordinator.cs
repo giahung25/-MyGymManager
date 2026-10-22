@@ -151,19 +151,22 @@ public class AttendanceCoordinator : IDisposable
     /// </summary>
     private void OnFrameCaptured(object? sender, Mat frame)
     {
-        // Nếu vòng lặp suy luận AI trước đó chưa hoàn tất -> Hủy frame này ngay lập tức để giải phóng RAM
+        if (frame.Empty()) return;
+
+        // Nếu vòng lặp suy luận AI trước đó chưa hoàn tất -> Bỏ qua frame này ngay lập tức
         if (Interlocked.CompareExchange(ref _isProcessingFrame, 1, 0) != 0)
         {
-            frame.Dispose();
             return;
         }
 
-        // Đẩy frame vào background worker xử lý bất đồng bộ
+        // Clone một bản Mat riêng cho Background AI Worker để không tranh chấp với UI Thread
+        var aiFrame = frame.Clone();
+
         _ = Task.Run(async () =>
         {
             try
             {
-                await ProcessFrameCoreAsync(frame).ConfigureAwait(false);
+                await ProcessFrameCoreAsync(aiFrame).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -171,8 +174,7 @@ public class AttendanceCoordinator : IDisposable
             }
             finally
             {
-                // BẮT BUỘC: Giải phóng unmanaged memory của Mat frame đã nhận từ CameraService
-                frame.Dispose();
+                aiFrame.Dispose();
                 Interlocked.Exchange(ref _isProcessingFrame, 0);
             }
         });

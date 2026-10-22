@@ -155,10 +155,11 @@ public class OpenCvCameraService : ICameraService
                         continue;
                     }
 
-                    // Phát sự kiện với bản sao Clone() độc lập để subscriber không bị tranh chấp bộ nhớ unmanaged
+                    // Phát sự kiện với bản sao Clone() độc lập, tự giải phóng sau khi các subscriber đồng bộ hoàn tất
                     try
                     {
-                        FrameCaptured?.Invoke(this, frame.Clone());
+                        using var broadcastFrame = frame.Clone();
+                        FrameCaptured?.Invoke(this, broadcastFrame);
                     }
                     catch (Exception ex)
                     {
