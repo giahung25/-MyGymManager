@@ -214,25 +214,60 @@ public class OpenCvCameraService : ICameraService
             // Thử DirectShow (DSHOW) trước vì độ tương thích và tốc độ tốt nhất trên Windows
             var dshowCapture = new VideoCapture(cameraIndex, VideoCaptureAPIs.DSHOW);
             if (dshowCapture.IsOpened())
+            {
+                ConfigureUsbWebcam(dshowCapture);
                 return dshowCapture;
+            }
 
             dshowCapture.Dispose();
 
             // Fallback sang API mặc định của hệ thống
-            return new VideoCapture(cameraIndex, VideoCaptureAPIs.ANY);
+            var anyCapture = new VideoCapture(cameraIndex, VideoCaptureAPIs.ANY);
+            if (anyCapture.IsOpened())
+            {
+                ConfigureUsbWebcam(anyCapture);
+            }
+            return anyCapture;
         }
 
         // Nguồn RTSP, HTTP Stream hoặc đường dẫn video file -> Sử dụng FFMPEG
         var ffmpegCapture = new VideoCapture(source, VideoCaptureAPIs.FFMPEG);
         if (ffmpegCapture.IsOpened())
+        {
+            try { ffmpegCapture.Set(VideoCaptureProperties.BufferSize, 1); } catch { }
             return ffmpegCapture;
+        }
 
         ffmpegCapture.Dispose();
 
         // Fallback sang ANY
-        return new VideoCapture(source, VideoCaptureAPIs.ANY);
+        var anySourceCapture = new VideoCapture(source, VideoCaptureAPIs.ANY);
+        try { anySourceCapture.Set(VideoCaptureProperties.BufferSize, 1); } catch { }
+        return anySourceCapture;
     }
 
+    /// <summary>
+    /// Cấu hình FourCC MJPG, độ phân giải 1280x720 và 30 FPS cho Webcam USB DirectShow.
+    /// Tránh hiện tượng DirectShow mặc định chọn codec YUY2 làm nghẽn băng thông USB và sụt FPS xuống 5 FPS.
+    /// </summary>
+    private static void ConfigureUsbWebcam(VideoCapture capture)
+    {
+        try
+        {
+            // Ép DirectShow sử dụng FourCC MJPG (Motion JPEG nén phần cứng)
+            capture.Set(VideoCaptureProperties.FourCC, VideoWriter.FourCC('M', 'J', 'P', 'G'));
+            capture.Set(VideoCaptureProperties.FrameWidth, 1280);
+            capture.Set(VideoCaptureProperties.FrameHeight, 720);
+            capture.Set(VideoCaptureProperties.Fps, 30);
+            capture.Set(VideoCaptureProperties.BufferSize, 1);
+
+            Debug.WriteLine("[OpenCvCameraService] Đã cấu hình USB Webcam: MJPG 1280x720 @ 30 FPS (BufferSize=1)");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[OpenCvCameraService] Không thể thiết lập thông số tối ưu webcam: {ex.Message}");
+        }
+    }
     /// <summary>
     /// Giải phóng toàn bộ tài nguyên unmanaged và kết thúc tác vụ nền.
     /// </summary>

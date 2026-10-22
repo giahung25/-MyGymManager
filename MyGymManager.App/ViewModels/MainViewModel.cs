@@ -59,6 +59,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private string _systemClockText = string.Empty;
     private bool _isCameraRunning = true;
     private bool _isInitialized = false;
+    // Cờ nguyên tử chống Dispatcher Queue Flooding (0: Rảnh, 1: Đang bận render UI)
+    private int _isRenderingUi = 0;
 
     // Manual checkin
     private string _manualPhoneNumber = string.Empty;
@@ -352,22 +354,39 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     private void OnCameraFrameCaptured(object? sender, Mat frame)
     {
+        if (frame.Empty()) return;
+
+        // Khắc phục Dispatcher Queue Flooding: Drop frame ngay lập tức nếu UI chưa render xong frame trước
+        if (Interlocked.CompareExchange(ref _isRenderingUi, 1, 0) != 0)
+        {
+            return;
+        }
+
         try
         {
-            if (frame.Empty()) return;
-
-            // Chuyển đổi Mat sang BitmapSource chuẩn WPF và Freeze để truy cập đa luồng an toàn
+            // Chuyển đổi Mat sang BitmapSource chuẩn WPF trên luồng Camera
             var bitmap = BitmapSourceConverter.ToBitmapSource(frame);
+            // Freeze giúp BitmapSource bất biến (thread-safe) và loại bỏ hoàn toàn GC pause
             bitmap.Freeze();
 
-            Application.Current?.Dispatcher.BeginInvoke(() =>
+            Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
             {
-                CameraFeed = bitmap;
-            }, DispatcherPriority.Render);
+                try
+                {
+                    CameraFeed = bitmap;
+                }
+                finally
+                {
+                    // Mở lại cờ cho phép frame kế tiếp được render
+                    Interlocked.Exchange(ref _isRenderingUi, 0);
+                }
+            });
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[MainViewModel] Lỗi convert frame: {ex.Message}");
+            // Đảm bảo mở lại cờ nếu có ngoại lệ xảy ra trước khi dispatch
+            Interlocked.Exchange(ref _isRenderingUi, 0);
         }
     }
 
