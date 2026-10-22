@@ -140,15 +140,24 @@ public class OnnxFaceEngine : IFaceEngine
 
     private List<FaceBox> DetectFacesInternal(Mat frame, float scoreThreshold, float nmsThreshold)
     {
+        // 1. Tính toán tỷ lệ co giãn giữ nguyên tỷ lệ khung hình (Letterbox padding chuẩn InsightFace _detect_candidates)
+        float detScale = Math.Min((float)ScrfdInputSize / frame.Width, (float)ScrfdInputSize / frame.Height);
+        int newWidth = (int)Math.Round(frame.Width * detScale);
+        int newHeight = (int)Math.Round(frame.Height * detScale);
+
+        // Tạo canvas đen chuẩn 640x640
+        using var padded = new Mat(new Size(ScrfdInputSize, ScrfdInputSize), MatType.CV_8UC3, Scalar.All(0));
+
+        // Resize ảnh gốc giữ nguyên tỷ lệ khung hình
         using var resized = new Mat();
-        Cv2.Resize(frame, resized, new Size(ScrfdInputSize, ScrfdInputSize));
+        Cv2.Resize(frame, resized, new Size(newWidth, newHeight));
+
+        // Đặt ảnh đã resize vào góc trên bên trái của canvas (0, 0)
+        using var roi = new Mat(padded, new Rect(0, 0, newWidth, newHeight));
+        resized.CopyTo(roi);
 
         using var rgb = new Mat();
-        Cv2.CvtColor(resized, rgb, ColorConversionCodes.BGR2RGB);
-
-        float scaleX = (float)frame.Width / ScrfdInputSize;
-        float scaleY = (float)frame.Height / ScrfdInputSize;
-
+        Cv2.CvtColor(padded, rgb, ColorConversionCodes.BGR2RGB);
         var inputTensor = new DenseTensor<float>(new[] { 1, 3, ScrfdInputSize, ScrfdInputSize });
         byte[] buffer = new byte[ScrfdInputSize * ScrfdInputSize * 3];
         Marshal.Copy(rgb.Data, buffer, 0, buffer.Length);
@@ -190,17 +199,16 @@ public class OnnxFaceEngine : IFaceEngine
                 int cy = (gridIdx / featW) * stride;
                 int cx = (gridIdx % featW) * stride;
 
-                float x1 = (cx - bboxTensor[anchorIdx, 0] * stride) * scaleX;
-                float y1 = (cy - bboxTensor[anchorIdx, 1] * stride) * scaleY;
-                float x2 = (cx + bboxTensor[anchorIdx, 2] * stride) * scaleX;
-                float y2 = (cy + bboxTensor[anchorIdx, 3] * stride) * scaleY;
-
+                float x1 = (cx - bboxTensor[anchorIdx, 0] * stride) / detScale;
+                float y1 = (cy - bboxTensor[anchorIdx, 1] * stride) / detScale;
+                float x2 = (cx + bboxTensor[anchorIdx, 2] * stride) / detScale;
+                float y2 = (cy + bboxTensor[anchorIdx, 3] * stride) / detScale;
                 var landmarks = new Point2f[5];
                 for (int k = 0; k < 5; k++)
                 {
-                    float lx = (cx + kpsTensor[anchorIdx, 2 * k] * stride) * scaleX;
-                    float ly = (cy + kpsTensor[anchorIdx, 2 * k + 1] * stride) * scaleY;
-                    landmarks[k] = new Point2f(lx, ly);
+                    float lx = (cx + kpsTensor[anchorIdx, 2 * k] * stride) / detScale;
+                    float ly = (cy + kpsTensor[anchorIdx, 2 * k + 1] * stride) / detScale;
+                    landmarks[k] = new Point2f(Math.Clamp(lx, 0, frame.Width), Math.Clamp(ly, 0, frame.Height));
                 }
 
                 candidates.Add(new FaceBox

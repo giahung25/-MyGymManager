@@ -443,31 +443,6 @@
                                             <Grid>
                                                 <!-- Video Stream từ OpenCvSharp -->
                                                 <Image Source="{Binding CameraFeed}" Stretch="UniformToFill" />
-
-                                                <!-- Bounding Box hình chữ nhật màu Cam #FF6B00 chỉ hiện lên khi có khuôn mặt -->
-                                                <Canvas IsHitTestVisible="False">
-                                                    <Border Canvas.Left="{Binding FaceRectLeft}"
-                                                            Canvas.Top="{Binding FaceRectTop}"
-                                                            Width="{Binding FaceRectWidth}"
-                                                            Height="{Binding FaceRectHeight}"
-                                                            BorderBrush="{StaticResource BrushPrimaryOrange}"
-                                                            BorderThickness="2.5"
-                                                            CornerRadius="6"
-                                                            Visibility="{Binding IsFaceDetected, Converter={StaticResource BoolToVis}}">
-                                                        <Border.Effect>
-                                                            <DropShadowEffect Color="#FF6B00" BlurRadius="10" Opacity="0.6" ShadowDepth="0" />
-                                                        </Border.Effect>
-                                                        <!-- Nhãn FACE DETECTED -->
-                                                        <Border Background="{StaticResource BrushPrimaryOrange}"
-                                                                HorizontalAlignment="Left"
-                                                                VerticalAlignment="Top"
-                                                                Margin="0,-22,0,0"
-                                                                Padding="6,2"
-                                                                CornerRadius="4">
-                                                            <TextBlock Text="{Binding FaceBoxLabel}" FontSize="10" FontWeight="700" Foreground="#FFFFFF" />
-                                                        </Border>
-                                                    </Border>
-                                                </Canvas>
                                             </Grid>
                                         </Border>
 

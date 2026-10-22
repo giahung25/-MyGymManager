@@ -185,31 +185,6 @@
                     <Border Grid.Row="1" Background="#111827" CornerRadius="10" ClipToBounds="True" Margin="0,0,0,12">
                         <Grid>
                             <Image Source="{Binding CameraPreview}" Stretch="UniformToFill" />
-
-                            <!-- Bounding Box Canvas Overlay -->
-                            <Canvas IsHitTestVisible="False">
-                                <Border Canvas.Left="{Binding FaceRectLeft}"
-                                        Canvas.Top="{Binding FaceRectTop}"
-                                        Width="{Binding FaceRectWidth}"
-                                        Height="{Binding FaceRectHeight}"
-                                        BorderBrush="#FF6B00"
-                                        BorderThickness="2.5"
-                                        CornerRadius="6"
-                                        Visibility="{Binding IsFaceDetected, Converter={StaticResource BoolToVis}}">
-                                    <Border.Effect>
-                                        <DropShadowEffect Color="#FF6B00" BlurRadius="8" Opacity="0.6" ShadowDepth="0" />
-                                    </Border.Effect>
-                                    <!-- Nhãn FACE DETECTED -->
-                                    <Border Background="#FF6B00"
-                                            HorizontalAlignment="Left"
-                                            VerticalAlignment="Top"
-                                            Margin="0,-22,0,0"
-                                            Padding="6,2"
-                                            CornerRadius="4">
-                                        <TextBlock Text="{Binding FaceBoxLabel}" FontSize="10" FontWeight="700" Foreground="#FFFFFF" />
-                                    </Border>
-                                </Border>
-                            </Canvas>
                         </Grid>
                     </Border>
 

@@ -62,6 +62,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private bool _isInitialized = false;
     // Cờ nguyên tử chống Dispatcher Queue Flooding (0: Rảnh, 1: Đang bận render UI)
     private int _isRenderingUi = 0;
+    private FaceBox? _lastDetectedFace;
+    private DateTime _lastFaceDetectedTime = DateTime.MinValue;
     // Bounding Box Face Detection Overlay
     private bool _isFaceDetected = false;
     private double _faceRectLeft = 0;
@@ -414,6 +416,24 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
+            // VẼ TRỰC TIẾP BOUNDING BOX LÊN MAT BẰNG OPENCV:
+            // Đảm bảo khung viền dính chính xác 100% vào khuôn mặt trên video, không bao giờ bị lệch tỉ lệ
+            if (_lastDetectedFace != null && (DateTime.UtcNow - _lastFaceDetectedTime).TotalMilliseconds < 600)
+            {
+                var rect = _lastDetectedFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, frame.Width, frame.Height));
+                if (rect.Width > 0 && rect.Height > 0)
+                {
+                    // Màu cam thể thao #FF6B00 trong BGR format là Scalar(0, 107, 255)
+                    var orangeColor = new Scalar(0, 107, 255);
+                    Cv2.Rectangle(frame, rect, orangeColor, 2);
+
+                    // Nhãn FACE DETECTED
+                    string label = $"FACE DETECTED ({_lastDetectedFace.Score * 100:F0}%)";
+                    var textPos = new OpenCvSharp.Point(rect.X, Math.Max(24, rect.Y - 8));
+                    Cv2.PutText(frame, label, textPos, HersheyFonts.HersheySimplex, 0.6, orangeColor, 2, LineTypes.AntiAlias);
+                }
+            }
+
             // Chuyển đổi Mat sang BitmapSource chuẩn WPF trên luồng Camera
             var bitmap = BitmapSourceConverter.ToBitmapSource(frame);
             // Freeze giúp BitmapSource bất biến (thread-safe) và loại bỏ hoàn toàn GC pause
@@ -535,27 +555,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     private void OnFaceDetected(object? sender, FaceBox? face)
     {
-        Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
-        {
-            if (face == null)
-            {
-                IsFaceDetected = false;
-                return;
-            }
-
-            // Tỷ lệ scale từ Frame 1280x720 sang khung hiển thị UI ~490x360
-            const double containerW = 490.0;
-            const double containerH = 360.0;
-            double scaleX = containerW / 1280.0;
-            double scaleY = containerH / 720.0;
-
-            FaceRectLeft = Math.Max(0, face.X1 * scaleX);
-            FaceRectTop = Math.Max(0, face.Y1 * scaleY);
-            FaceRectWidth = Math.Max(20, (face.X2 - face.X1) * scaleX);
-            FaceRectHeight = Math.Max(20, (face.Y2 - face.Y1) * scaleY);
-            FaceBoxLabel = $"FACE DETECTED ({face.Score * 100:F0}%)";
-            IsFaceDetected = true;
-        });
+        _lastDetectedFace = face;
+        _lastFaceDetectedTime = DateTime.UtcNow;
     }
 
     /// <summary>

@@ -46,6 +46,8 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
     private int _isRenderingUi = 0;
     private int _isProcessingAutoCapture = 0;
     private bool _disposed = false;
+    private FaceBox? _lastDetectedFace;
+    private DateTime _lastFaceDetectedTime = DateTime.MinValue;
 
     // Bounding Box Overlay
     private bool _isFaceDetected = false;
@@ -273,9 +275,23 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         {
             try
             {
+                // VẼ TRỰC TIẾP BOUNDING BOX LÊN MAT BẰNG OPENCV:
+                if (_lastDetectedFace != null && (DateTime.UtcNow - _lastFaceDetectedTime).TotalMilliseconds < 600)
+                {
+                    var rect = _lastDetectedFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, frame.Width, frame.Height));
+                    if (rect.Width > 0 && rect.Height > 0)
+                    {
+                        var orangeColor = new Scalar(0, 107, 255);
+                        Cv2.Rectangle(frame, rect, orangeColor, 2);
+
+                        string label = $"FACE DETECTED ({_lastDetectedFace.Score * 100:F0}%)";
+                        var textPos = new OpenCvSharp.Point(rect.X, Math.Max(24, rect.Y - 8));
+                        Cv2.PutText(frame, label, textPos, HersheyFonts.HersheySimplex, 0.6, orangeColor, 2, LineTypes.AntiAlias);
+                    }
+                }
+
                 var bitmap = BitmapSourceConverter.ToBitmapSource(frame);
                 bitmap.Freeze();
-
                 Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
                 {
                     try
@@ -327,6 +343,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
 
         if (faces == null || faces.Count == 0)
         {
+            _lastDetectedFace = null;
             Application.Current?.Dispatcher.InvokeAsync(() =>
             {
                 IsFaceDetected = false;
@@ -341,7 +358,8 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
 
         // Lấy khuôn mặt lớn nhất gần camera nhất
         var bestFace = faces.OrderByDescending(f => f.Width * f.Height).First();
-
+        _lastDetectedFace = bestFace;
+        _lastFaceDetectedTime = DateTime.UtcNow;
         // Cập nhật vị trí Bounding Box màu Cam trên khung preview (Kích thước preview: ~450x260)
         const double containerW = 450.0;
         const double containerH = 260.0;
