@@ -139,7 +139,8 @@ public class RegisterMemberViewModel : INotifyPropertyChanged
     public RegisterMemberViewModel(
         AppDbContext dbContext,
         AttendanceCoordinator attendanceCoordinator,
-        AudioNotificationService? audioService = null)
+        AudioNotificationService? audioService = null,
+        IEnumerable<Package>? initialPackages = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _attendanceCoordinator = attendanceCoordinator ?? throw new ArgumentNullException(nameof(attendanceCoordinator));
@@ -148,7 +149,22 @@ public class RegisterMemberViewModel : INotifyPropertyChanged
         SaveMemberCommand = new RelayCommand(async () => await OnSaveMemberAsync());
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
 
-        _ = LoadPackagesAsync();
+        if (initialPackages != null && initialPackages.Any())
+        {
+            var sorted = initialPackages.OrderBy(p => p.DurationDays).ToList();
+            foreach (var p in sorted)
+            {
+                Packages.Add(p);
+            }
+
+            var p1Month = Packages.FirstOrDefault(p => p.DurationDays == 30 || p.Name.Contains("1 Tháng", StringComparison.OrdinalIgnoreCase))
+                       ?? Packages[0];
+            SelectedPackage = p1Month;
+        }
+        else
+        {
+            _ = LoadPackagesAsync();
+        }
     }
 
     private async Task LoadPackagesAsync()
@@ -164,9 +180,11 @@ public class RegisterMemberViewModel : INotifyPropertyChanged
                     Packages.Add(p);
                 }
 
-                if (Packages.Count > 0 && SelectedPackage == null)
+                if (Packages.Count > 0)
                 {
-                    SelectedPackage = Packages[0];
+                    var p1Month = Packages.FirstOrDefault(p => p.DurationDays == 30 || p.Name.Contains("1 Tháng", StringComparison.OrdinalIgnoreCase))
+                               ?? Packages[0];
+                    SelectedPackage = p1Month;
                 }
             });
         }

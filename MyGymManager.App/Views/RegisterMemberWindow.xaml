@@ -154,7 +154,7 @@
 
                     <!-- Chọn gói tập -->
                     <TextBlock Text="Chọn Gói Tập (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
-                    <ComboBox ItemsSource="{Binding Packages}" SelectedItem="{Binding SelectedPackage}" DisplayMemberPath="Name" Height="38" FontSize="13" VerticalContentAlignment="Center" Margin="0,0,0,10" />
+                    <ComboBox ItemsSource="{Binding Packages}" SelectedItem="{Binding SelectedPackage}" DisplayMemberPath="Name" SelectedIndex="0" Height="38" FontSize="13" VerticalContentAlignment="Center" Margin="0,0,0,10" />
 
                     <!-- Tóm tắt gói tập đã chọn -->
                     <Border Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,14">

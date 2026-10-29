@@ -1171,7 +1171,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            var registerVm = new RegisterMemberViewModel(_dbContext, _attendanceCoordinator, _audioService);
+            var registerVm = new RegisterMemberViewModel(_dbContext, _attendanceCoordinator, _audioService, PackagesList);
             var window = new Views.RegisterMemberWindow(registerVm)
             {
                 Owner = Application.Current?.MainWindow
