@@ -348,11 +348,18 @@
                                     <TextBlock Text="Báo cáo lưu lượng giờ cao điểm, sức khỏe thẻ tập và xu hướng hội viên" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
                                 </StackPanel>
 
-                                <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Command="{Binding ExportMembersExcelCommand}" Height="38" Padding="16,0" ToolTip="Xuất toàn bộ danh sách hội viên và trạng thái thẻ ra file Excel (.csv)">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="📥 Xuất Báo Cáo Excel" FontSize="12" FontWeight="700" />
-                                    </StackPanel>
-                                </Button>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource SecondaryButton}" Command="{Binding ExportMembersExcelCommand}" Height="38" Padding="14,0" Margin="0,0,10,0" ToolTip="Xuất toàn bộ danh sách hội viên và trạng thái thẻ ra file Excel (.csv)">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="📥 Xuất Báo Cáo Excel" FontSize="12" FontWeight="600" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding RegisterNewMemberCommand}" Height="38" Padding="16,0" ToolTip="Đăng ký thêm hội viên mới vào phòng Gym">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="+ Thêm Hội Viên Mới" FontSize="12" FontWeight="700" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
                             </Grid>
 
                             <!-- 3 Thẻ KPI thống kê nhanh -->
