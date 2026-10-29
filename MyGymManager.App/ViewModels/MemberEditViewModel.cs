@@ -25,6 +25,7 @@ public class MemberEditViewModel : INotifyPropertyChanged
 
     private string _fullName = string.Empty;
     private string _phoneNumber = string.Empty;
+    private string _gender = "Nam";
     private bool _isActive = true;
     private bool _doRenew = false;
     private int _renewDays = 30;
@@ -57,6 +58,37 @@ public class MemberEditViewModel : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(CanSave));
             }
+        }
+    }
+
+    public string Gender
+    {
+        get => _gender;
+        set
+        {
+            if (SetField(ref _gender, value))
+            {
+                OnPropertyChanged(nameof(IsMale));
+                OnPropertyChanged(nameof(IsFemale));
+            }
+        }
+    }
+
+    public bool IsMale
+    {
+        get => Gender == "Nam";
+        set
+        {
+            if (value) Gender = "Nam";
+        }
+    }
+
+    public bool IsFemale
+    {
+        get => Gender == "Nữ";
+        set
+        {
+            if (value) Gender = "Nữ";
         }
     }
 
@@ -124,6 +156,7 @@ public class MemberEditViewModel : INotifyPropertyChanged
 
         FullName = _member.FullName;
         PhoneNumber = _member.PhoneNumber;
+        Gender = string.IsNullOrWhiteSpace(_member.Gender) ? "Nam" : _member.Gender;
         IsActive = _member.IsActive;
 
         SaveCommand = new RelayCommand(async () => await OnSaveAsync());
@@ -154,39 +187,54 @@ public class MemberEditViewModel : INotifyPropertyChanged
                 }
             }
 
-            // 1. Cập nhật hồ sơ hội viên
-            _member.UpdateProfile(name, phone);
+            // 1. Truy vấn thực thể đang được theo dõi từ DbContext theo Id
+            var memberInDb = await _dbContext.Members
+                .Include(m => m.Package)
+                .FirstOrDefaultAsync(m => m.Id == _member.Id);
 
-            // 2. Cập nhật trạng thái kích hoạt / khóa thẻ
+            if (memberInDb == null)
+            {
+                ErrorMessage = "Không tìm thấy hội viên trong cơ sở dữ liệu.";
+                IsBusy = false;
+                return;
+            }
+
+            // 2. Cập nhật hồ sơ hội viên
+            memberInDb.UpdateProfile(name, phone, Gender);
+            _member.UpdateProfile(name, phone, Gender);
+
+            // 3. Cập nhật trạng thái kích hoạt / khóa thẻ
             if (IsActive)
             {
+                memberInDb.Activate();
                 _member.Activate();
             }
             else
             {
+                memberInDb.Deactivate();
                 _member.Deactivate();
             }
 
-            // 3. Gia hạn gói tập nếu người dùng chọn gia hạn
+            // 4. Gia hạn gói tập nếu người dùng chọn gia hạn
             if (DoRenew && RenewDays > 0)
             {
+                memberInDb.Renew(RenewDays);
                 _member.Renew(RenewDays);
-                Debug.WriteLine($"[MemberEditViewModel] Đã gia hạn hội viên {_member.FullName} thêm {RenewDays} ngày.");
+                Debug.WriteLine($"[MemberEditViewModel] Đã gia hạn hội viên {memberInDb.FullName} thêm {RenewDays} ngày.");
             }
 
-            // 4. Lưu thay đổi vào SQLite
+            // 5. Lưu thay đổi chắc chắn ghi xuống SQLite
             await _dbContext.SaveChangesAsync();
 
-            // 5. Đồng bộ tức thời vào RAM Cache của AttendanceCoordinator
-            if (_member.IsActive)
+            // 6. Đồng bộ tức thời vào RAM Cache của AttendanceCoordinator
+            if (memberInDb.IsActive)
             {
-                _attendanceCoordinator.UpdateMemberInCache(_member);
+                _attendanceCoordinator.UpdateMemberInCache(memberInDb);
             }
             else
             {
-                _attendanceCoordinator.RemoveMemberFromCache(_member.Id);
+                _attendanceCoordinator.RemoveMemberFromCache(memberInDb.Id);
             }
-
             RequestClose?.Invoke(true);
         }
         catch (Exception ex)

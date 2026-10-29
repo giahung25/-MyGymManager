@@ -19,6 +19,12 @@ public static class DbInitializer
         // 1. Tự động tạo cơ sở dữ liệu và các bảng nếu chưa tồn tại
         await context.Database.EnsureCreatedAsync();
 
+        // Tự động bổ sung các cột mới nếu CSDL SQLite đã tồn tại từ các phiên bản trước (Safe Migration)
+        try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE Members ADD COLUMN CardUid TEXT NULL;"); } catch { }
+        try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE Members ADD COLUMN FingerprintData TEXT NULL;"); } catch { }
+        try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE Members ADD COLUMN QrKey TEXT NULL;"); } catch { }
+        try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE Members ADD COLUMN Gender TEXT DEFAULT 'Nam';"); } catch { }
+        try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE CheckInLogs ADD COLUMN Method INTEGER NOT NULL DEFAULT 0;"); } catch { }
         // 2. Seed 3 gói tập mẫu nếu bảng Packages chưa có dữ liệu
         if (!await context.Packages.AnyAsync())
         {

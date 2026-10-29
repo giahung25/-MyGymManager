@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:MyGymManager.App.ViewModels"
+        xmlns:conv="clr-namespace:MyGymManager.App.Converters"
         mc:Ignorable="d"
         Title="Đăng Ký Hội Viên Mới &amp; Quét Face ID — Phuc Gym"
         Height="720" Width="920"
@@ -20,6 +21,7 @@
         <SolidColorBrush x:Key="BrushTextSecondary" Color="#4B5563" />
         <SolidColorBrush x:Key="BrushTextMuted" Color="#9CA3AF" />
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <conv:GenderToBoolConverter x:Key="GenderToBoolConverter" />
 
         <Style x:Key="DialogCard" TargetType="Border">
             <Setter Property="Background" Value="#FFFFFF" />
@@ -143,6 +145,17 @@
                             </Style>
                         </TextBox.Resources>
                     </TextBox>
+
+                    <!-- Giới tính -->
+                    <TextBlock Text="Giới tính (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                        <RadioButton Content="Nam"
+                                     IsChecked="{Binding Gender, Converter={StaticResource GenderToBoolConverter}, ConverterParameter=Nam}"
+                                     GroupName="GenderRegister" FontWeight="600" FontSize="13" Margin="0,0,28,0" Cursor="Hand" />
+                        <RadioButton Content="Nữ"
+                                     IsChecked="{Binding Gender, Converter={StaticResource GenderToBoolConverter}, ConverterParameter=Nữ}"
+                                     GroupName="GenderRegister" FontWeight="600" FontSize="13" Cursor="Hand" />
+                    </StackPanel>
 
                     <!-- Chọn gói tập -->
                     <TextBlock Text="Chọn Gói Tập (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
@@ -365,37 +378,13 @@
                             <Button Grid.Column="1" Style="{StaticResource SecondaryBtn}" Command="{Binding ResetCaptureCommand}" Content="Quét lại" Height="28" Padding="8,0" Margin="10,8,0,0" VerticalAlignment="Bottom" />
                         </Grid>
 
-                        <!-- 4. Ảnh Crop & Thông báo trạng thái -->
-                        <Grid Grid.Row="3">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="64" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Ảnh khuôn mặt vừa chụp -->
-                            <Border Grid.Column="0" Width="60" Height="60" CornerRadius="8" Background="#F3F4F6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" ClipToBounds="True">
-                                <Grid>
-                                    <Image Source="{Binding CapturedFaceImage}" Stretch="UniformToFill" />
-                                    <TextBlock Text="Chờ quét" FontSize="10" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding HasFaceVector}" Value="True">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                </Grid>
-                            </Border>
-
-                            <!-- Dòng hướng dẫn và thông báo trạng thái -->
-                            <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <!-- 4. Thông báo trạng thái quét Face ID (Không còn khung avatar thừa) -->
+                        <Border Grid.Row="3" Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="14,10">
+                            <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="{Binding StatusMessage}" Foreground="{Binding StatusColor}" FontSize="12" FontWeight="700" TextWrapping="Wrap" />
-                                <TextBlock Text="Hệ thống tự động phát hiện mặt đạt chuẩn (Confidence &gt; 70%) và chụp 3 mẫu cách nhau 1 giây." FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,3,0,0" TextWrapping="Wrap" />
+                                <TextBlock Text="Hệ thống tự động nhận diện góc mặt qua Bounding Box và thanh Visual Angle Guide để chụp 3 mẫu Face ID đạt chuẩn." FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,3,0,0" TextWrapping="Wrap" />
                             </StackPanel>
-                        </Grid>
+                        </Border>
                         </Grid>
                 </Grid>
             </Border>

@@ -18,8 +18,11 @@ public interface IFaceEngine : IDisposable
 
     /// <summary>
     /// Trích xuất vector đặc trưng khuôn mặt chuẩn 512 chiều bằng mô hình ArcFace (w600k_r50.onnx).
+    /// Nếu truyền landmarks 5 điểm mốc (2 mắt, mũi, 2 khóe miệng), hàm tự động thực hiện phép biến đổi
+    /// Affine Transformation (Similarity Transform chuẩn InsightFace) để căn chỉnh khuôn mặt chuẩn 112x112.
     /// </summary>
-    /// <param name="faceCrop">Ảnh khuôn mặt đã căn chỉnh chuẩn kích thước 112x112 qua Affine Transform.</param>
+    /// <param name="frameOrCrop">Ảnh gốc từ camera hoặc ảnh mặt crop.</param>
+    /// <param name="landmarks">5 điểm mốc đặc trưng từ SCRFD để căn chỉnh Affine chuẩn ArcFace.</param>
     /// <returns>Mảng float[512] đã chuẩn hóa L2 (norm = 1.0) hoặc null nếu không thành công.</returns>
-    Task<float[]?> ExtractEmbeddingAsync(Mat faceCrop);
+    Task<float[]?> ExtractEmbeddingAsync(Mat frameOrCrop, Point2f[]? landmarks = null);
 }

@@ -9,8 +9,8 @@ public class Member
     public Guid Id { get; private set; }
     public string FullName { get; private set; } = string.Empty;
     public string PhoneNumber { get; private set; } = string.Empty;
+    public string Gender { get; private set; } = "Nam";
     public string? AvatarPath { get; private set; }
-
     public Guid? PackageId { get; private set; }
     public Package? Package { get; private set; }
 
@@ -25,6 +25,20 @@ public class Member
     /// </summary>
     public List<float[]> FaceVectors { get; private set; } = new();
 
+    /// <summary>
+    /// Mã định danh thẻ từ RFID / NFC (Mifare 13.56MHz UID).
+    /// </summary>
+    public string? CardUid { get; private set; }
+
+    /// <summary>
+    /// Chuỗi mã hóa dữ liệu mẫu vân tay sinh trắc học.
+    /// </summary>
+    public string? FingerprintData { get; private set; }
+
+    /// <summary>
+    /// Mã định danh QR Code thành viên (quét từ app di động).
+    /// </summary>
+    public string? QrKey { get; private set; }
     // Navigation property lịch sử điểm danh
     public ICollection<CheckInLog> CheckInLogs { get; private set; } = new List<CheckInLog>();
 
@@ -40,7 +54,10 @@ public class Member
         int packageDays,
         float[]? initialFaceVector = null,
         Guid? packageId = null,
-        string? avatarPath = null)
+        string gender = "Nam",
+        string? cardUid = null,
+        string? fingerprintData = null,
+        string? qrKey = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName, nameof(fullName));
         ArgumentException.ThrowIfNullOrWhiteSpace(phoneNumber, nameof(phoneNumber));
@@ -56,8 +73,11 @@ public class Member
             Id = Guid.NewGuid(),
             FullName = fullName.Trim(),
             PhoneNumber = phoneNumber.Trim(),
-            AvatarPath = string.IsNullOrWhiteSpace(avatarPath) ? null : avatarPath.Trim(),
+            Gender = string.IsNullOrWhiteSpace(gender) ? "Nam" : gender.Trim(),
             PackageId = packageId,
+            CardUid = string.IsNullOrWhiteSpace(cardUid) ? null : cardUid.Trim(),
+            FingerprintData = string.IsNullOrWhiteSpace(fingerprintData) ? null : fingerprintData.Trim(),
+            QrKey = string.IsNullOrWhiteSpace(qrKey) ? null : qrKey.Trim(),
             StartDate = now,
             EndDate = now.AddDays(packageDays),
             IsActive = true,
@@ -122,17 +142,14 @@ public class Member
     /// <summary>
     /// Cập nhật thông tin hồ sơ hội viên.
     /// </summary>
-    public void UpdateProfile(string fullName, string phoneNumber, string? avatarPath = null)
+    public void UpdateProfile(string fullName, string phoneNumber, string gender = "Nam")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName, nameof(fullName));
         ArgumentException.ThrowIfNullOrWhiteSpace(phoneNumber, nameof(phoneNumber));
 
         FullName = fullName.Trim();
         PhoneNumber = phoneNumber.Trim();
-        if (avatarPath != null)
-        {
-            AvatarPath = string.IsNullOrWhiteSpace(avatarPath) ? null : avatarPath.Trim();
-        }
+        Gender = string.IsNullOrWhiteSpace(gender) ? "Nam" : gender.Trim();
     }
 
     /// <summary>
@@ -154,4 +171,8 @@ public class Member
     /// Kích hoạt lại thẻ hội viên.
     /// </summary>
     public void Activate() => IsActive = true;
+
+    public void AssignCardUid(string? cardUid) => CardUid = string.IsNullOrWhiteSpace(cardUid) ? null : cardUid.Trim();
+    public void AssignFingerprint(string? fingerprint) => FingerprintData = string.IsNullOrWhiteSpace(fingerprint) ? null : fingerprint.Trim();
+    public void AssignQrKey(string? qrKey) => QrKey = string.IsNullOrWhiteSpace(qrKey) ? null : qrKey.Trim();
 }

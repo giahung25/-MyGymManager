@@ -3,6 +3,7 @@ namespace MyGymManager.App.ViewModels;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using Microsoft.EntityFrameworkCore;
 using MyGymManager.Core.Entities;
 using MyGymManager.Data;
 
@@ -128,7 +129,12 @@ public class PackageEditViewModel : INotifyPropertyChanged
         {
             if (IsEditMode && _package != null)
             {
-                // Cập nhật thực thể hiện có theo Rich Domain Model
+                // Cập nhật thực thể hiện có qua DbContext
+                var packageInDb = await _dbContext.Packages.FirstOrDefaultAsync(p => p.Id == _package.Id);
+                if (packageInDb != null)
+                {
+                    packageInDb.Update(Name.Trim(), DurationDays, Price, Description);
+                }
                 _package.Update(Name.Trim(), DurationDays, Price, Description);
                 ResultPackage = _package;
             }

@@ -1,5 +1,7 @@
 namespace MyGymManager.Core.Entities;
 
+using MyGymManager.Core.Interfaces;
+
 /// <summary>
 /// Thực thể Lịch sử Điểm danh (CheckInLog) tuân thủ Rich Domain Model.
 /// Ghi nhận thời điểm vào/ra phòng tập và độ tin cậy nhận diện khuôn mặt (Confidence Score).
@@ -18,13 +20,22 @@ public class CheckInLog
     /// </summary>
     public float ConfidenceScore { get; private set; }
 
+    /// <summary>
+    /// Phương thức xác thực đã sử dụng (Khuôn mặt, Thẻ từ, Vân tay, Mã QR, Thủ công).
+    /// </summary>
+    public IdentificationMethod Method { get; private set; } = IdentificationMethod.FaceRecognition;
+
     // Constructor private dành riêng cho EF Core
     private CheckInLog() { }
 
     /// <summary>
     /// Factory Method tạo lượt điểm danh mới khi nhận diện thành công.
     /// </summary>
-    public static CheckInLog Create(Guid memberId, float confidenceScore, DateTime? checkInTime = null)
+    public static CheckInLog Create(
+        Guid memberId,
+        float confidenceScore,
+        DateTime? checkInTime = null,
+        IdentificationMethod method = IdentificationMethod.FaceRecognition)
     {
         if (memberId == Guid.Empty)
             throw new ArgumentException("MemberId không được là Guid rỗng.", nameof(memberId));
@@ -36,7 +47,8 @@ public class CheckInLog
             Id = Guid.NewGuid(),
             MemberId = memberId,
             CheckInTime = checkInTime ?? DateTime.UtcNow,
-            ConfidenceScore = confidenceScore
+            ConfidenceScore = confidenceScore,
+            Method = method
         };
     }
 

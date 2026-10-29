@@ -29,6 +29,15 @@ public class OnnxFaceEngine : IFaceEngine
     private static readonly string[] ScrfdBboxNames = { "451", "474", "497" };
     private static readonly string[] ScrfdKpsNames = { "454", "477", "500" };
 
+    // Bộ đệm tái sử dụng (Zero Allocation trên LOH Heap - Tiết kiệm hàng trăm MB RAM và triệt tiêu GC Pauses)
+    private readonly float[] _scrfdInputBuffer = new float[1 * 3 * ScrfdInputSize * ScrfdInputSize];
+    private readonly DenseTensor<float> _scrfdInputTensor;
+    private readonly byte[] _scrfdByteBuffer = new byte[ScrfdInputSize * ScrfdInputSize * 3];
+
+    private readonly float[] _arcfaceInputBuffer = new float[1 * 3 * ArcFaceInputSize * ArcFaceInputSize];
+    private readonly DenseTensor<float> _arcfaceInputTensor;
+    private readonly byte[] _arcfaceByteBuffer = new byte[ArcFaceInputSize * ArcFaceInputSize * 3];
+
     /// <summary>
     /// Khởi tạo FaceEngine với đường dẫn tự động tìm kiếm hoặc chỉ định trực tiếp.
     /// </summary>
@@ -40,13 +49,17 @@ public class OnnxFaceEngine : IFaceEngine
         var sessionOptions = new SessionOptions
         {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
-            ExecutionMode = ExecutionMode.ORT_SEQUENTIAL
+            ExecutionMode = ExecutionMode.ORT_SEQUENTIAL,
+            IntraOpNumThreads = 2 // Giới hạn 2 threads thay vì dùng tất cả các nhân CPU
         };
-
+        // Tắt cơ chế spin-wait của ONNX Runtime để luồng nghỉ ngơi thay vì đốt 100% CPU khi rảnh
+        sessionOptions.AddSessionConfigEntry("session.intra_op.allow_spinning", "0");
         try
         {
             _detSession = new InferenceSession(resolvedDetPath, sessionOptions);
             _recSession = new InferenceSession(resolvedRecPath, sessionOptions);
+            _scrfdInputTensor = new DenseTensor<float>(_scrfdInputBuffer.AsMemory(), new[] { 1, 3, ScrfdInputSize, ScrfdInputSize });
+            _arcfaceInputTensor = new DenseTensor<float>(_arcfaceInputBuffer.AsMemory(), new[] { 1, 3, ArcFaceInputSize, ArcFaceInputSize });
         }
         catch (Exception ex)
         {
@@ -87,12 +100,12 @@ public class OnnxFaceEngine : IFaceEngine
     /// </summary>
     /// <param name="faceCrop">Ảnh khuôn mặt đã căn chỉnh hoặc cắt vuông.</param>
     /// <returns>Vector float[512] đã chuẩn hóa L2 norm = 1.0.</returns>
-    public async Task<float[]?> ExtractEmbeddingAsync(Mat faceCrop)
+    public async Task<float[]?> ExtractEmbeddingAsync(Mat frameOrCrop, Point2f[]? landmarks = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(faceCrop, nameof(faceCrop));
+        ArgumentNullException.ThrowIfNull(frameOrCrop, nameof(frameOrCrop));
 
-        if (faceCrop.Empty() || faceCrop.Width <= 0 || faceCrop.Height <= 0)
+        if (frameOrCrop.Empty() || frameOrCrop.Width <= 0 || frameOrCrop.Height <= 0)
             return null;
 
         return await Task.Run(() =>
@@ -100,7 +113,7 @@ public class OnnxFaceEngine : IFaceEngine
             _inferenceLock.Wait();
             try
             {
-                return ExtractEmbeddingInternal(faceCrop);
+                return ExtractEmbeddingInternal(frameOrCrop, landmarks);
             }
             finally
             {
@@ -158,24 +171,23 @@ public class OnnxFaceEngine : IFaceEngine
 
         using var rgb = new Mat();
         Cv2.CvtColor(padded, rgb, ColorConversionCodes.BGR2RGB);
-        var inputTensor = new DenseTensor<float>(new[] { 1, 3, ScrfdInputSize, ScrfdInputSize });
-        byte[] buffer = new byte[ScrfdInputSize * ScrfdInputSize * 3];
-        Marshal.Copy(rgb.Data, buffer, 0, buffer.Length);
+        // Tái sử dụng mảng đệm - 0 allocation trên GC
+        Marshal.Copy(rgb.Data, _scrfdByteBuffer, 0, _scrfdByteBuffer.Length);
 
-        for (int y = 0; y < ScrfdInputSize; y++)
+        int planeSize = ScrfdInputSize * ScrfdInputSize;
+        int gOffset = planeSize;
+        int bOffset = planeSize * 2;
+        const float inv128 = 1.0f / 128.0f;
+
+        for (int i = 0, px = 0; i < planeSize; i++, px += 3)
         {
-            int rowOffset = y * ScrfdInputSize * 3;
-            for (int x = 0; x < ScrfdInputSize; x++)
-            {
-                int px = rowOffset + x * 3;
-                inputTensor[0, 0, y, x] = (buffer[px] - 127.5f) / 128.0f;     // R
-                inputTensor[0, 1, y, x] = (buffer[px + 1] - 127.5f) / 128.0f; // G
-                inputTensor[0, 2, y, x] = (buffer[px + 2] - 127.5f) / 128.0f; // B
-            }
+            _scrfdInputBuffer[i] = (_scrfdByteBuffer[px] - 127.5f) * inv128;         // R
+            _scrfdInputBuffer[gOffset + i] = (_scrfdByteBuffer[px + 1] - 127.5f) * inv128; // G
+            _scrfdInputBuffer[bOffset + i] = (_scrfdByteBuffer[px + 2] - 127.5f) * inv128; // B
         }
 
-        var inputs = new[] { NamedOnnxValue.CreateFromTensor("input.1", inputTensor) };
-        using var results = _detSession.Run(inputs);
+        var inputVal = NamedOnnxValue.CreateFromTensor("input.1", _scrfdInputTensor);
+        using var results = _detSession.Run(new[] { inputVal });
         var outputDict = results.ToDictionary(r => r.Name, r => r.AsTensor<float>());
 
         var candidates = new List<FaceBox>();
@@ -226,39 +238,83 @@ public class OnnxFaceEngine : IFaceEngine
         return ApplyNms(candidates, nmsThreshold);
     }
 
-    private float[]? ExtractEmbeddingInternal(Mat faceCrop)
+    private static readonly Point2f[] ArcFaceDst = new Point2f[]
     {
-        using var resized = new Mat();
-        if (faceCrop.Width != ArcFaceInputSize || faceCrop.Height != ArcFaceInputSize)
+        new Point2f(38.2946f, 51.6963f), // Mắt trái
+        new Point2f(73.5318f, 51.5014f), // Mắt phải
+        new Point2f(56.0252f, 71.7366f), // Đầu mũi
+        new Point2f(41.5493f, 92.3655f), // Khóe miệng trái
+        new Point2f(70.7299f, 92.2041f)  // Khóe miệng phải
+    };
+
+    /// <summary>
+    /// Căn chỉnh khuôn mặt chuẩn ArcFace 112x112 bằng phép biến đổi tương đồng Affine (Similarity Transform).
+    /// </summary>
+    public static Mat AlignFace(Mat image, Point2f[] landmarks)
+    {
+        if (landmarks == null || landmarks.Length < 5)
         {
-            Cv2.Resize(faceCrop, resized, new Size(ArcFaceInputSize, ArcFaceInputSize));
+            var fallback = new Mat();
+            Cv2.Resize(image, fallback, new Size(ArcFaceInputSize, ArcFaceInputSize));
+            return fallback;
         }
-        else
+
+        var srcPoints = new Point2f[5];
+        Array.Copy(landmarks, srcPoints, 5);
+
+        using var affineMat = Cv2.EstimateAffinePartial2D(
+            InputArray.Create(srcPoints),
+            InputArray.Create(ArcFaceDst));
+
+        if (affineMat == null || affineMat.Empty())
         {
-            faceCrop.CopyTo(resized);
+            var fallback = new Mat();
+            Cv2.Resize(image, fallback, new Size(ArcFaceInputSize, ArcFaceInputSize));
+            return fallback;
         }
+
+        var alignedFace = new Mat();
+        Cv2.WarpAffine(
+            image,
+            alignedFace,
+            affineMat,
+            new Size(ArcFaceInputSize, ArcFaceInputSize),
+            InterpolationFlags.Linear,
+            BorderTypes.Constant,
+            Scalar.All(0));
+
+        return alignedFace;
+    }
+
+    private float[]? ExtractEmbeddingInternal(Mat frameOrCrop, Point2f[]? landmarks = null)
+    {
+        // Căn chỉnh khuôn mặt bằng 5 landmarks qua Similarity Transform (WarpAffine)
+        using var alignedMat = (landmarks != null && landmarks.Length >= 5)
+            ? AlignFace(frameOrCrop, landmarks)
+            : ((frameOrCrop.Width != ArcFaceInputSize || frameOrCrop.Height != ArcFaceInputSize)
+                ? ResizeMat(frameOrCrop, ArcFaceInputSize)
+                : frameOrCrop.Clone());
 
         using var rgb = new Mat();
-        Cv2.CvtColor(resized, rgb, ColorConversionCodes.BGR2RGB);
+        Cv2.CvtColor(alignedMat, rgb, ColorConversionCodes.BGR2RGB);
 
-        var inputTensor = new DenseTensor<float>(new[] { 1, 3, ArcFaceInputSize, ArcFaceInputSize });
-        byte[] buffer = new byte[ArcFaceInputSize * ArcFaceInputSize * 3];
-        Marshal.Copy(rgb.Data, buffer, 0, buffer.Length);
+        // Tái sử dụng mảng đệm ArcFace
+        Marshal.Copy(rgb.Data, _arcfaceByteBuffer, 0, _arcfaceByteBuffer.Length);
 
-        for (int y = 0; y < ArcFaceInputSize; y++)
+        int arcPlaneSize = ArcFaceInputSize * ArcFaceInputSize;
+        int arcGOffset = arcPlaneSize;
+        int arcBOffset = arcPlaneSize * 2;
+        const float inv1275 = 1.0f / 127.5f;
+
+        for (int i = 0, px = 0; i < arcPlaneSize; i++, px += 3)
         {
-            int rowOffset = y * ArcFaceInputSize * 3;
-            for (int x = 0; x < ArcFaceInputSize; x++)
-            {
-                int px = rowOffset + x * 3;
-                inputTensor[0, 0, y, x] = (buffer[px] - 127.5f) / 127.5f;     // R
-                inputTensor[0, 1, y, x] = (buffer[px + 1] - 127.5f) / 127.5f; // G
-                inputTensor[0, 2, y, x] = (buffer[px + 2] - 127.5f) / 127.5f; // B
-            }
+            _arcfaceInputBuffer[i] = (_arcfaceByteBuffer[px] - 127.5f) * inv1275;
+            _arcfaceInputBuffer[arcGOffset + i] = (_arcfaceByteBuffer[px + 1] - 127.5f) * inv1275;
+            _arcfaceInputBuffer[arcBOffset + i] = (_arcfaceByteBuffer[px + 2] - 127.5f) * inv1275;
         }
 
-        var inputs = new[] { NamedOnnxValue.CreateFromTensor("input.1", inputTensor) };
-        using var results = _recSession.Run(inputs);
+        var inputVal = NamedOnnxValue.CreateFromTensor("input.1", _arcfaceInputTensor);
+        using var results = _recSession.Run(new[] { inputVal });
 
         var output = results.FirstOrDefault(r => r.Name == "683") ?? results.First();
         var rawEmbedding = output.AsEnumerable<float>().ToArray();
@@ -283,6 +339,13 @@ public class OnnxFaceEngine : IFaceEngine
         }
 
         return rawEmbedding;
+    }
+
+    private static Mat ResizeMat(Mat src, int size)
+    {
+        var dst = new Mat();
+        Cv2.Resize(src, dst, new Size(size, size));
+        return dst;
     }
 
     private static List<FaceBox> ApplyNms(List<FaceBox> boxes, float nmsThreshold)

@@ -311,8 +311,18 @@
                         <TextBlock Text="Nhận diện hội viên thời gian thực 60 FPS • Độ trễ &lt; 70ms" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
                     </StackPanel>
 
-                    <!-- Right: Camera Status Badge + Live Clock -->
+                    <!-- Right: Camera Status Badge + Live Clock + Customer Facing HDMI Button -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Nút Mở Màn hình Khách HDMI -->
+                        <Button Style="{StaticResource SecondaryButton}"
+                                Command="{Binding OpenCustomerFacingWindowCommand}"
+                                Height="34" Padding="12,0" Margin="0,0,14,0"
+                                ToolTip="Mở Kiosk Màn hình phụ HDMI dành cho Khách Hàng">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="🖥️ Màn Hình Khách (HDMI)" FontSize="12" FontWeight="700" />
+                            </StackPanel>
+                        </Button>
+
                         <!-- Camera Status Pill -->
                         <Border Background="#F3F4F6" CornerRadius="20" Padding="12,6" Margin="0,0,16,0">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -404,7 +414,36 @@
                                             <DataGridTextColumn Header="Số điện thoại" Binding="{Binding PhoneNumber}" Width="140" />
                                             <DataGridTextColumn Header="Gói tập" Binding="{Binding PackageName}" Width="160" />
                                             <DataGridTextColumn Header="Độ tin cậy" Binding="{Binding Confidence}" Width="120" />
-                                            <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="140" />
+                                            <DataGridTemplateColumn Header="Trạng thái" Width="140">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border CornerRadius="12" Padding="10,3" HorizontalAlignment="Left">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="#D1FAE5" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                                                            <Setter Property="Background" Value="#FFEDD5" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="600">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="#047857" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                                                                <Setter Property="Foreground" Value="#EA580C" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </StackPanel>
@@ -436,6 +475,33 @@
                                             <Border Background="{StaticResource BrushPrimaryOrangeLight}" CornerRadius="12" Padding="8,4" HorizontalAlignment="Right">
                                                 <TextBlock Text="60 FPS" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
                                             </Border>
+                                        </Grid>
+
+                                        <!-- Hàng chọn nguồn Camera & Nút quét lại thiết bị -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox Grid.Column="0"
+                                                      ItemsSource="{Binding AvailableCameras}"
+                                                      SelectedItem="{Binding SelectedCamera, Mode=TwoWay}"
+                                                      DisplayMemberPath="DisplayName"
+                                                      Height="36"
+                                                      FontSize="12"
+                                                      VerticalContentAlignment="Center"
+                                                      ToolTip="Chọn thiết bị camera muốn sử dụng để quét khuôn mặt" />
+                                            <Button Grid.Column="2"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    Command="{Binding RefreshCamerasCommand}"
+                                                    Height="36"
+                                                    Padding="12,0"
+                                                    ToolTip="Quét lại toàn bộ camera đang cắm vào máy tính">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="🔄 Quét lại" FontSize="11" />
+                                                </StackPanel>
+                                            </Button>
                                         </Grid>
 
                                         <!-- Camera Feed Container với Khung Oval Overlay -->
@@ -569,7 +635,7 @@
                                                 <TextBlock Text="{Binding TodayLogsCountText}" FontSize="12" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
                                             </Border>
                                         </StackPanel>
-                                        <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Height="32" Padding="12,0" HorizontalAlignment="Right" Command="{Binding RefreshMembersCommand}" />
+                                        <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Height="32" Padding="12,0" HorizontalAlignment="Right" Command="{Binding RefreshLogsCommand}" />
                                     </Grid>
 
                                     <!-- Bảng DataGrid hiển thị realtime -->
@@ -589,7 +655,7 @@
                                                                     <Setter Property="Background" Value="#D1FAE5" />
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding IsValid}" Value="False">
-                                                                            <Setter Property="Background" Value="#FEE2E2" />
+                                                                            <Setter Property="Background" Value="#FFEDD5" />
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
@@ -600,7 +666,7 @@
                                                                         <Setter Property="Foreground" Value="#047857" />
                                                                         <Style.Triggers>
                                                                             <DataTrigger Binding="{Binding IsValid}" Value="False">
-                                                                                <Setter Property="Foreground" Value="#B91C1C" />
+                                                                                <Setter Property="Foreground" Value="#EA580C" />
                                                                             </DataTrigger>
                                                                         </Style.Triggers>
                                                                     </Style>
@@ -632,7 +698,7 @@
 
                                 <Grid Grid.Row="0" Margin="0,0,0,16">
                                     <TextBlock Text="Nhật Ký Điểm Danh Hệ Thống" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
-                                    <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Height="34" Padding="14,0" HorizontalAlignment="Right" Command="{Binding RefreshMembersCommand}" />
+                                    <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Height="34" Padding="14,0" HorizontalAlignment="Right" Command="{Binding RefreshLogsCommand}" />
                                 </Grid>
 
                                 <DataGrid Grid.Row="1" Style="{StaticResource ModernDataGrid}" ItemsSource="{Binding TodayLogs}">
@@ -642,7 +708,36 @@
                                         <DataGridTextColumn Header="Số điện thoại" Binding="{Binding PhoneNumber}" Width="150" />
                                         <DataGridTextColumn Header="Gói tập hiện tại" Binding="{Binding PackageName}" Width="180" />
                                         <DataGridTextColumn Header="Độ tin cậy" Binding="{Binding Confidence}" Width="130" />
-                                        <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="140" />
+                                        <DataGridTemplateColumn Header="Trạng thái" Width="140">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="12" Padding="10,3" HorizontalAlignment="Left">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#D1FAE5" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                                                        <Setter Property="Background" Value="#FFEDD5" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="600">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="#047857" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsValid}" Value="False">
+                                                                            <Setter Property="Foreground" Value="#EA580C" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Grid>
@@ -663,7 +758,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- Thanh tìm kiếm & Nút thêm mới -->
-                        <Grid Grid.Row="0" Margin="0,0,0,18">
+                        <Grid Grid.Row="0" Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="380" />
                                 <ColumnDefinition Width="*" />
@@ -681,6 +776,129 @@
                                 </TextBox.Resources>
                             </TextBox>
 
+                            <!-- 4 Nút Lọc Trạng Thái Hội Viên -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                                <!-- 1. Tất cả -->
+                                <Button Command="{Binding SetMemberFilterCommand}" CommandParameter="All"
+                                        Height="38" Padding="14,0" Margin="0,0,8,0" Cursor="Hand" BorderThickness="1">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#F3F4F6" />
+                                            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+                                            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+                                            <Setter Property="FontWeight" Value="600" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="b" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFilterAllActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource BrushPrimaryOrange}" />
+                                                    <Setter Property="Foreground" Value="#FFFFFF" />
+                                                    <Setter Property="BorderBrush" Value="{StaticResource BrushPrimaryOrange}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <TextBlock Text="Tất cả" FontSize="12" />
+                                </Button>
+
+                                <!-- 2. Đang tập -->
+                                <Button Command="{Binding SetMemberFilterCommand}" CommandParameter="Active"
+                                        Height="38" Padding="14,0" Margin="0,0,8,0" Cursor="Hand" BorderThickness="1">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#F3F4F6" />
+                                            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+                                            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+                                            <Setter Property="FontWeight" Value="600" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="b" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFilterActiveActive}" Value="True">
+                                                    <Setter Property="Background" Value="#10B981" />
+                                                    <Setter Property="Foreground" Value="#FFFFFF" />
+                                                    <Setter Property="BorderBrush" Value="#059669" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <TextBlock Text="🟢 Đang tập" FontSize="12" />
+                                </Button>
+
+                                <!-- 3. Sắp hết hạn (7 ngày) -->
+                                <Button Command="{Binding SetMemberFilterCommand}" CommandParameter="ExpiringSoon"
+                                        Height="38" Padding="14,0" Margin="0,0,8,0" Cursor="Hand" BorderThickness="1">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#F3F4F6" />
+                                            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+                                            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+                                            <Setter Property="FontWeight" Value="600" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="b" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFilterExpiringSoonActive}" Value="True">
+                                                    <Setter Property="Background" Value="#F59E0B" />
+                                                    <Setter Property="Foreground" Value="#FFFFFF" />
+                                                    <Setter Property="BorderBrush" Value="#D97706" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <TextBlock Text="⏰ Sắp hết hạn (7 ngày)" FontSize="12" />
+                                </Button>
+
+                                <!-- 4. Đã hết hạn -->
+                                <Button Command="{Binding SetMemberFilterCommand}" CommandParameter="Expired"
+                                        Height="38" Padding="14,0" Cursor="Hand" BorderThickness="1">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#F3F4F6" />
+                                            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}" />
+                                            <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+                                            <Setter Property="FontWeight" Value="600" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="b" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFilterExpiredActive}" Value="True">
+                                                    <Setter Property="Background" Value="#EF4444" />
+                                                    <Setter Property="Foreground" Value="#FFFFFF" />
+                                                    <Setter Property="BorderBrush" Value="#DC2626" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    <TextBlock Text="❌ Đã hết hạn" FontSize="12" />
+                                </Button>
+                            </StackPanel>
+
                             <!-- Actions: Thêm mới hội viên & Làm mới -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
                                 <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Command="{Binding RefreshMembersCommand}" Height="42" Margin="0,0,10,0" />
@@ -693,11 +911,12 @@
                             <DataGrid Style="{StaticResource ModernDataGrid}" ItemsSource="{Binding MembersList}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Họ và Tên" Binding="{Binding FullName}" Width="*" />
-                                    <DataGridTextColumn Header="Số điện thoại" Binding="{Binding PhoneNumber}" Width="150" />
-                                    <DataGridTextColumn Header="Gói tập" Binding="{Binding Package.Name}" Width="180" />
-                                    <DataGridTextColumn Header="Ngày bắt đầu" Binding="{Binding StartDate, StringFormat='{}{0:dd/MM/yyyy}'}" Width="130" />
-                                    <DataGridTextColumn Header="Ngày hết hạn" Binding="{Binding EndDate, StringFormat='{}{0:dd/MM/yyyy}'}" Width="130" />
-                                    <DataGridTemplateColumn Header="Trạng thái" Width="140">
+                                    <DataGridTextColumn Header="Giới tính" Binding="{Binding Gender}" Width="90" />
+                                    <DataGridTextColumn Header="Số điện thoại" Binding="{Binding PhoneNumber}" Width="140" />
+                                    <DataGridTextColumn Header="Gói tập" Binding="{Binding Package.Name}" Width="170" />
+                                    <DataGridTextColumn Header="Ngày bắt đầu" Binding="{Binding StartDate, StringFormat='{}{0:dd/MM/yyyy}'}" Width="120" />
+                                    <DataGridTextColumn Header="Ngày hết hạn" Binding="{Binding EndDate, StringFormat='{}{0:dd/MM/yyyy}'}" Width="120" />
+                                    <DataGridTemplateColumn Header="Trạng thái" Width="130">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Border CornerRadius="12" Padding="10,3" HorizontalAlignment="Left">
@@ -729,11 +948,17 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="Face ID Templates" Binding="{Binding FaceVectors.Count, StringFormat='{}{0} góc'}" Width="140" />
-                                    <DataGridTemplateColumn Header="Thao tác" Width="140">
+                                    <DataGridTextColumn Header="Face ID Templates" Binding="{Binding FaceVectors.Count, StringFormat='{}{0} góc'}" Width="130" />
+                                    <DataGridTemplateColumn Header="Thao tác" Width="220">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button Content="Xem lịch sử"
+                                                            Command="{Binding DataContext.ViewMemberHistoryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource SecondaryButton}"
+                                                            Height="28" Padding="8,0" Margin="0,0,6,0" FontSize="11"
+                                                            ToolTip="Xem các lượt điểm danh của riêng hội viên này" />
                                                     <Button Content="Sửa"
                                                             Command="{Binding DataContext.EditMemberCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                             CommandParameter="{Binding}"

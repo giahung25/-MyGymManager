@@ -127,6 +127,7 @@ public class OpenCvCameraService : ICameraService
                 }
 
                 using var frame = new Mat();
+                var frameTimer = Stopwatch.StartNew();
 
                 while (!cancellationToken.IsCancellationRequested)
                 {
@@ -166,8 +167,12 @@ public class OpenCvCameraService : ICameraService
                         Debug.WriteLine($"[OpenCvCameraService] Ngoại lệ tại handler FrameCaptured: {ex.Message}");
                     }
 
-                    // Nhường CPU nhẹ nhàng để tránh chiếm dụng toàn bộ tài nguyên
-                    await Task.Yield();
+                    long elapsedMs = frameTimer.ElapsedMilliseconds;
+                    if (elapsedMs < 30)
+                    {
+                        await Task.Delay((int)(30 - elapsedMs), cancellationToken).ConfigureAwait(false);
+                    }
+                    frameTimer.Restart();
                 }
             }
             catch (OperationCanceledException)
@@ -209,25 +214,52 @@ public class OpenCvCameraService : ICameraService
     /// </summary>
     private static VideoCapture CreateVideoCapture(string source)
     {
-        if (int.TryParse(source, out int cameraIndex))
+        if (int.TryParse(source, out int preferredIndex))
         {
-            // Thử DirectShow (DSHOW) trước vì độ tương thích và tốc độ tốt nhất trên Windows
-            var dshowCapture = new VideoCapture(cameraIndex, VideoCaptureAPIs.DSHOW);
-            if (dshowCapture.IsOpened())
+            // Tự động thử index ưu tiên trước, sau đó thử các index khác (1, 0, 2, 3)
+            var indicesToTry = new List<int> { preferredIndex };
+            if (!indicesToTry.Contains(1)) indicesToTry.Add(1);
+            if (!indicesToTry.Contains(0)) indicesToTry.Add(0);
+            if (!indicesToTry.Contains(2)) indicesToTry.Add(2);
+
+            foreach (int idx in indicesToTry)
             {
-                ConfigureUsbWebcam(dshowCapture);
-                return dshowCapture;
+                // 1. Ưu tiên Microsoft Media Foundation (MSMF) - Tốc độ cao nhất, không bị block trên Windows 11
+                try
+                {
+                    var msmfCap = new VideoCapture(idx, VideoCaptureAPIs.MSMF);
+                    if (msmfCap.IsOpened())
+                    {
+                        ConfigureUsbWebcam(msmfCap);
+                        Debug.WriteLine($"[OpenCvCameraService] Đã mở thành công Camera Index {idx} qua MSMF.");
+                        return msmfCap;
+                    }
+                    msmfCap.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[OpenCvCameraService] MSMF index {idx} lỗi: {ex.Message}");
+                }
+
+                // 2. Thử API mặc định hệ thống (ANY)
+                try
+                {
+                    var anyCap = new VideoCapture(idx, VideoCaptureAPIs.ANY);
+                    if (anyCap.IsOpened())
+                    {
+                        ConfigureUsbWebcam(anyCap);
+                        Debug.WriteLine($"[OpenCvCameraService] Đã mở thành công Camera Index {idx} qua ANY.");
+                        return anyCap;
+                    }
+                    anyCap.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[OpenCvCameraService] ANY index {idx} lỗi: {ex.Message}");
+                }
             }
 
-            dshowCapture.Dispose();
-
-            // Fallback sang API mặc định của hệ thống
-            var anyCapture = new VideoCapture(cameraIndex, VideoCaptureAPIs.ANY);
-            if (anyCapture.IsOpened())
-            {
-                ConfigureUsbWebcam(anyCapture);
-            }
-            return anyCapture;
+            return new VideoCapture(preferredIndex, VideoCaptureAPIs.ANY);
         }
 
         // Nguồn RTSP, HTTP Stream hoặc đường dẫn video file -> Sử dụng FFMPEG
@@ -247,21 +279,17 @@ public class OpenCvCameraService : ICameraService
     }
 
     /// <summary>
-    /// Cấu hình FourCC MJPG, độ phân giải 1280x720 và 30 FPS cho Webcam USB DirectShow.
-    /// Tránh hiện tượng DirectShow mặc định chọn codec YUY2 làm nghẽn băng thông USB và sụt FPS xuống 5 FPS.
+    /// Cấu hình độ phân giải 1280x720 và 30 FPS cho Webcam USB.
     /// </summary>
     private static void ConfigureUsbWebcam(VideoCapture capture)
     {
         try
         {
-            // Ép DirectShow sử dụng FourCC MJPG (Motion JPEG nén phần cứng)
-            capture.Set(VideoCaptureProperties.FourCC, VideoWriter.FourCC('M', 'J', 'P', 'G'));
             capture.Set(VideoCaptureProperties.FrameWidth, 1280);
             capture.Set(VideoCaptureProperties.FrameHeight, 720);
             capture.Set(VideoCaptureProperties.Fps, 30);
             capture.Set(VideoCaptureProperties.BufferSize, 1);
-
-            Debug.WriteLine("[OpenCvCameraService] Đã cấu hình USB Webcam: MJPG 1280x720 @ 30 FPS (BufferSize=1)");
+            Debug.WriteLine("[OpenCvCameraService] Đã cấu hình USB Webcam: 1280x720 @ 30 FPS (BufferSize=1)");
         }
         catch (Exception ex)
         {

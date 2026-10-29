@@ -14,6 +14,7 @@ using MyGymManager.Core.Entities;
 using MyGymManager.Core.Interfaces;
 using MyGymManager.Core.Models;
 using MyGymManager.Data;
+using MyGymManager.Infrastructure.AI;
 using MyGymManager.Services;
 using OpenCvSharp;
 using OpenCvSharp.WpfExtensions;
@@ -46,6 +47,7 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
 
     private string _fullName = string.Empty;
     private string _phoneNumber = string.Empty;
+    private string _gender = "Nam";
     private Package? _selectedPackage;
     private BitmapSource? _cameraPreview;
     private BitmapSource? _capturedFaceImage;
@@ -60,6 +62,8 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
     private FaceBox? _lastDetectedFace;
     private DateTime _lastFaceDetectedTime = DateTime.MinValue;
     private DateTime _lastUiThrottleTime = DateTime.MinValue;
+    private int _step2Sign = 0; // -1 hoặc +1 lưu chiều xoay góc ở bước 2
+    private DateTime _lastAngleCapturedTime = DateTime.MinValue;
 
     // Visual Angle Guide & Pose Estimation Properties
     private double _currentPoseRatio = 0.5;
@@ -103,6 +107,37 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             {
                 OnPropertyChanged(nameof(CanSave));
             }
+        }
+    }
+
+    public string Gender
+    {
+        get => _gender;
+        set
+        {
+            if (SetField(ref _gender, value))
+            {
+                OnPropertyChanged(nameof(IsMale));
+                OnPropertyChanged(nameof(IsFemale));
+            }
+        }
+    }
+
+    public bool IsMale
+    {
+        get => Gender == "Nam";
+        set
+        {
+            if (value) Gender = "Nam";
+        }
+    }
+
+    public bool IsFemale
+    {
+        get => Gender == "Nữ";
+        set
+        {
+            if (value) Gender = "Nữ";
         }
     }
 
@@ -417,14 +452,16 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
     /// - Góc chính diện: độ lệch tâm Math.Abs(ratio - 0.5f) <= 0.08f (tương đương 0.42 - 0.58).
     /// - Góc nghiêng: chỉ cần lệch tâm Math.Abs(ratio - 0.5f) > 0.08f là nhận diện thành công!
     /// </summary>
-    public static bool CheckIfPoseMatchesTarget(float ratio, FacePose targetPose)
+    public bool CheckIfPoseMatchesTarget(float ratio, FacePose targetPose)
     {
-        float deviation = Math.Abs(ratio - 0.5f);
+        float delta = ratio - 0.5f;
+        float deviation = Math.Abs(delta);
+
         return targetPose switch
         {
-            FacePose.Center => deviation <= 0.08f,  // Chính diện: lệch tâm <= 0.08
-            FacePose.TurnLeft => deviation > 0.08f, // Góc nghiêng: lệch tâm > 0.08
-            FacePose.TurnRight => deviation > 0.08f, // Góc nghiêng: lệch tâm > 0.08
+            FacePose.Center => deviation <= 0.08f, // Bước 1: Chính diện (Lệch tâm <= 0.08)
+            FacePose.TurnLeft => deviation > 0.08f, // Bước 2: Bắt đầu xoay nghiêng (hướng bất kỳ)
+            FacePose.TurnRight => _step2Sign != 0 && (delta * _step2Sign < -0.08f), // Bước 3: BẮT BUỘC NGƯỢC CHIỀU BƯỚC 2!
             _ => false
         };
     }
@@ -502,6 +539,13 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
             return;
         }
 
+        // Kiểm tra delay tối thiểu 400ms sau khi vừa chụp góc trước để người dùng kịp xoay đầu
+        if ((DateTime.UtcNow - _lastAngleCapturedTime).TotalMilliseconds < 400)
+        {
+            _poseMatchStartTime = DateTime.MinValue;
+            return;
+        }
+
         // 4. CHỈ KHI NGƯỜI DÙNG QUAY ĐÚNG GÓC TARGET MỚI ĐẾM GIỜ VÀ CHỤP
         if (!isAngleMatched)
         {
@@ -537,19 +581,26 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         var rect = bestFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, frame.Width, frame.Height));
         if (rect.Width < 40 || rect.Height < 40) return;
 
-        using var faceCrop = new Mat(frame, rect);
+        using var alignedFace = (bestFace.Landmarks != null && bestFace.Landmarks.Length >= 5)
+            ? OnnxFaceEngine.AlignFace(frame, bestFace.Landmarks)
+            : new Mat(frame, rect);
 
-        var vector = await _faceEngine.ExtractEmbeddingAsync(faceCrop);
+        var vector = await _faceEngine.ExtractEmbeddingAsync(frame, bestFace.Landmarks);
         if (vector == null || vector.Length != 512) return;
 
-        var faceBitmap = BitmapSourceConverter.ToBitmapSource(faceCrop);
+        var faceBitmap = BitmapSourceConverter.ToBitmapSource(alignedFace);
         faceBitmap.Freeze();
-
         _capturedVectors.Add(vector);
         int currentCount = _capturedVectors.Count;
 
         // Phát âm thanh bip theo thứ tự mẫu 1, 2, 3
         _audioService.PlayCaptureBeep(currentCount);
+        _lastAngleCapturedTime = DateTime.UtcNow;
+        if (currentCount == 2)
+        {
+            _step2Sign = Math.Sign(yawRatio - 0.5f);
+            if (_step2Sign == 0) _step2Sign = -1;
+        }
 
         Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Normal, () =>
         {
@@ -633,20 +684,27 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
                 var rect = bestFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, frameToCapture.Width, frameToCapture.Height));
                 if (rect.Width < 40 || rect.Height < 40) return;
 
-                using var faceCrop = new Mat(frameToCapture, rect);
+                using var alignedFace = (bestFace.Landmarks != null && bestFace.Landmarks.Length >= 5)
+                    ? OnnxFaceEngine.AlignFace(frameToCapture, bestFace.Landmarks)
+                    : new Mat(frameToCapture, rect);
 
-                var vector = await _faceEngine.ExtractEmbeddingAsync(faceCrop);
+                var vector = await _faceEngine.ExtractEmbeddingAsync(frameToCapture, bestFace.Landmarks);
                 if (vector == null || vector.Length != 512) return;
 
-                var faceBitmap = BitmapSourceConverter.ToBitmapSource(faceCrop);
+                var faceBitmap = BitmapSourceConverter.ToBitmapSource(alignedFace);
                 faceBitmap.Freeze();
-
                 _capturedVectors.Add(vector);
                 int currentCount = _capturedVectors.Count;
 
                 // Phát âm thanh bip
                 _audioService.PlayCaptureBeep(currentCount);
 
+                _lastAngleCapturedTime = DateTime.UtcNow;
+                if (currentCount == 2)
+                {
+                    _step2Sign = Math.Sign(CalculateYawRatio(bestFace.Landmarks) - 0.5f);
+                    if (_step2Sign == 0) _step2Sign = -1;
+                }
                 Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Normal, () =>
                 {
                     CapturedFaceImage = faceBitmap;
@@ -702,9 +760,12 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
     {
         _capturedVectors.Clear();
         CapturedFaceImage = null;
+        Gender = "Nam";
         ProgressValue = 0;
         ProgressText = "0/3 mẫu";
         _poseMatchStartTime = DateTime.MinValue;
+        _step2Sign = 0;
+        _lastAngleCapturedTime = DateTime.MinValue;
         CurrentTargetPose = FacePose.Center;
         CurrentTargetAngleText = "Góc 1/3: Nhìn thẳng (Chính diện)";
         CurrentPoseRatio = 0.5;
@@ -760,9 +821,12 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
         // Đặt lại số mẫu và bắt đầu từ Bước 1: Chính diện
         _capturedVectors.Clear();
         CapturedFaceImage = null;
+        Gender = "Nam";
         ProgressValue = 0;
         ProgressText = "0/3 mẫu";
         _poseMatchStartTime = DateTime.MinValue;
+        _step2Sign = 0;
+        _lastAngleCapturedTime = DateTime.MinValue;
         CurrentTargetPose = FacePose.Center;
         CurrentTargetAngleText = "Góc 1/3: Nhìn thẳng (Chính diện)";
         CurrentPoseRatio = 0.5;
@@ -813,7 +877,8 @@ public class RegisterMemberViewModel : INotifyPropertyChanged, IDisposable
                 phoneNumber: phone,
                 packageDays: SelectedPackage!.DurationDays,
                 initialFaceVector: _capturedVectors[0],
-                packageId: SelectedPackage.Id);
+                packageId: SelectedPackage.Id,
+                gender: Gender);
 
             for (int i = 1; i < _capturedVectors.Count; i++)
             {

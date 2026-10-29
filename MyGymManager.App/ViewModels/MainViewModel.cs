@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.EntityFrameworkCore;
+using MyGymManager.App.Views;
 using MyGymManager.Core.Entities;
 using MyGymManager.Core.Events;
 using MyGymManager.Core.Interfaces;
@@ -32,6 +33,17 @@ public record TodayLogItem(
     string Confidence,
     string Status,
     bool IsValid);
+
+/// <summary>
+/// Chế độ lọc danh sách hội viên trên giao diện quản trị.
+/// </summary>
+public enum MemberFilterMode
+{
+    All = 0,          // Tất cả hội viên
+    Active = 1,       // Đang hoạt động (EndDate >= now && IsActive)
+    ExpiringSoon = 2, // Sắp hết hạn (EndDate >= now && EndDate <= now + 7 ngày && IsActive)
+    Expired = 3       // Đã hết hạn hoặc bị khóa (EndDate < now || !IsActive)
+}
 
 /// <summary>
 /// ViewModel chính của màn hình Điểm danh & Quản trị phòng Gym (Phuc Gym Desktop).
@@ -64,6 +76,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private int _isRenderingUi = 0;
     private FaceBox? _lastDetectedFace;
     private DateTime _lastFaceDetectedTime = DateTime.MinValue;
+    private DateTime _lastUnidentifiedBeepTime = DateTime.MinValue;
     // Bounding Box Face Detection Overlay
     private bool _isFaceDetected = false;
     private double _faceRectLeft = 0;
@@ -107,6 +120,24 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         get => _faceBoxLabel;
         set => SetField(ref _faceBoxLabel, value);
     }
+    // Camera selection
+    private CameraDeviceInfo? _selectedCamera;
+    private string _currentCameraSource = "1";
+
+    public ObservableCollection<CameraDeviceInfo> AvailableCameras { get; } = new();
+
+    public CameraDeviceInfo? SelectedCamera
+    {
+        get => _selectedCamera;
+        set
+        {
+            if (SetField(ref _selectedCamera, value) && value != null)
+            {
+                _ = SwitchCameraSourceAsync(value);
+            }
+        }
+    }
+
 
     // Manual checkin
     private string _manualPhoneNumber = string.Empty;
@@ -292,6 +323,49 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set => SetField(ref _manualCheckInStatus, value);
     }
 
+    private MemberFilterMode _currentMemberFilter = MemberFilterMode.All;
+    public MemberFilterMode CurrentMemberFilter
+    {
+        get => _currentMemberFilter;
+        set
+        {
+            if (SetField(ref _currentMemberFilter, value))
+            {
+                OnPropertyChanged(nameof(IsFilterAll));
+                OnPropertyChanged(nameof(IsFilterActive));
+                OnPropertyChanged(nameof(IsFilterExpiringSoon));
+                OnPropertyChanged(nameof(IsFilterExpired));
+                OnPropertyChanged(nameof(IsFilterAllActive));
+                OnPropertyChanged(nameof(IsFilterActiveActive));
+                OnPropertyChanged(nameof(IsFilterExpiringSoonActive));
+                OnPropertyChanged(nameof(IsFilterExpiredActive));
+                _ = FilterMembersAsync();
+            }
+        }
+    }
+
+    public bool IsFilterAll => CurrentMemberFilter == MemberFilterMode.All;
+    public bool IsFilterActive => CurrentMemberFilter == MemberFilterMode.Active;
+    public bool IsFilterExpiringSoon => CurrentMemberFilter == MemberFilterMode.ExpiringSoon;
+    public bool IsFilterExpired => CurrentMemberFilter == MemberFilterMode.Expired;
+
+    public bool IsFilterAllActive => CurrentMemberFilter == MemberFilterMode.All;
+    public bool IsFilterActiveActive => CurrentMemberFilter == MemberFilterMode.Active;
+    public bool IsFilterExpiringSoonActive => CurrentMemberFilter == MemberFilterMode.ExpiringSoon;
+    public bool IsFilterExpiredActive => CurrentMemberFilter == MemberFilterMode.Expired;
+
+    /// <summary>
+    /// Lịch sử điểm danh của riêng 1 hội viên đang được chọn xem chi tiết.
+    /// </summary>
+    public ObservableCollection<CheckInLog> SelectedMemberHistory { get; } = new();
+
+    private Member? _selectedHistoryMember;
+    public Member? SelectedHistoryMember
+    {
+        get => _selectedHistoryMember;
+        set => SetField(ref _selectedHistoryMember, value);
+    }
+
     public string MemberSearchText
     {
         get => _memberSearchText;
@@ -327,6 +401,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand DeletePackageCommand { get; }
     public ICommand EditMemberCommand { get; }
     public ICommand DeleteMemberCommand { get; }
+    public ICommand RefreshLogsCommand { get; }
+    public ICommand RefreshCamerasCommand { get; }
+    public ICommand OpenCustomerFacingWindowCommand { get; }
+    public ICommand SetMemberFilterCommand { get; }
+    public ICommand ViewMemberHistoryCommand { get; }
 
     /// <summary>
     /// Constructor DI chính nhận các service được inject từ container.
@@ -355,6 +434,32 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         DeletePackageCommand = new RelayCommand<Package>(async (pkg) => await OnDeletePackageAsync(pkg));
         EditMemberCommand = new RelayCommand<Member>(OnEditMember);
         DeleteMemberCommand = new RelayCommand<Member>(async (m) => await OnDeleteMemberAsync(m));
+        RefreshLogsCommand = new RelayCommand(async () => await LoadTodayLogsAsync());
+        RefreshCamerasCommand = new RelayCommand(async () => await LoadAvailableCamerasAsync());
+        OpenCustomerFacingWindowCommand = new RelayCommand(OnOpenCustomerFacingWindow);
+        SetMemberFilterCommand = new RelayCommand<object>(param =>
+        {
+            if (param is MemberFilterMode mode)
+            {
+                CurrentMemberFilter = mode;
+            }
+            else if (param is int intVal && Enum.IsDefined(typeof(MemberFilterMode), intVal))
+            {
+                CurrentMemberFilter = (MemberFilterMode)intVal;
+            }
+            else if (param is string strVal)
+            {
+                if (Enum.TryParse<MemberFilterMode>(strVal, true, out var parsedMode))
+                {
+                    CurrentMemberFilter = parsedMode;
+                }
+                else if (int.TryParse(strVal, out var parsedInt) && Enum.IsDefined(typeof(MemberFilterMode), parsedInt))
+                {
+                    CurrentMemberFilter = (MemberFilterMode)parsedInt;
+                }
+            }
+        });
+        ViewMemberHistoryCommand = new RelayCommand<Member>(async m => await OnViewMemberHistoryAsync(m));
 
         // Lắng nghe sự kiện từ CameraService
         if (_cameraService != null)
@@ -400,6 +505,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             await LoadMembersAsync();
             await LoadPackagesAsync();
 
+            await LoadAvailableCamerasAsync();
             if (_attendanceCoordinator != null)
             {
                 StatusMessage = $"Hệ thống sẵn sàng đón hội viên ({_attendanceCoordinator.CachedMembersCount} hội viên trong RAM)";
@@ -426,29 +532,30 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
+            // CLONE FRAME để vẽ Bounding Box riêng cho UI, bảo toàn frame gốc cho các subscriber khác
+            using var displayMat = frame.Clone();
+
             // VẼ TRỰC TIẾP BOUNDING BOX LÊN MAT BẰNG OPENCV:
-            // Đảm bảo khung viền dính chính xác 100% vào khuôn mặt trên video, không bao giờ bị lệch tỉ lệ
             if (_lastDetectedFace != null && (DateTime.UtcNow - _lastFaceDetectedTime).TotalMilliseconds < 600)
             {
-                var rect = _lastDetectedFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, frame.Width, frame.Height));
+                var rect = _lastDetectedFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, displayMat.Width, displayMat.Height));
                 if (rect.Width > 0 && rect.Height > 0)
                 {
                     // Màu cam thể thao #FF6B00 trong BGR format là Scalar(0, 107, 255)
                     var orangeColor = new Scalar(0, 107, 255);
-                    Cv2.Rectangle(frame, rect, orangeColor, 2);
+                    Cv2.Rectangle(displayMat, rect, orangeColor, 2);
 
                     // Nhãn FACE DETECTED
                     string label = $"FACE DETECTED ({_lastDetectedFace.Score * 100:F0}%)";
                     var textPos = new OpenCvSharp.Point(rect.X, Math.Max(24, rect.Y - 8));
-                    Cv2.PutText(frame, label, textPos, HersheyFonts.HersheySimplex, 0.6, orangeColor, 2, LineTypes.AntiAlias);
+                    Cv2.PutText(displayMat, label, textPos, HersheyFonts.HersheySimplex, 0.6, orangeColor, 2, LineTypes.AntiAlias);
                 }
             }
 
             // Chuyển đổi Mat sang BitmapSource chuẩn WPF trên luồng Camera
-            var bitmap = BitmapSourceConverter.ToBitmapSource(frame);
+            var bitmap = BitmapSourceConverter.ToBitmapSource(displayMat);
             // Freeze giúp BitmapSource bất biến (thread-safe) và loại bỏ hoàn toàn GC pause
             bitmap.Freeze();
-
             Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
             {
                 try
@@ -556,7 +663,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));          // VÀNG / CAM
 
             StatusMessage = $"Phát hiện khuôn mặt lạ (Score: {score:F2}). Nhấn '+ Đăng ký Face ID mới' để tạo hồ sơ.";
-            _audioService?.PlayUnidentifiedFace();
+
+            // Cooldown 4 giây chống spam âm thanh bíp khi có mặt lạ đứng trước camera
+            var now = DateTime.UtcNow;
+            if ((now - _lastUnidentifiedBeepTime).TotalSeconds >= 4)
+            {
+                _lastUnidentifiedBeepTime = now;
+                _audioService?.PlayUnidentifiedFace();
+            }
         });
     }
 
@@ -631,17 +745,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            var startOfDay = DateTime.UtcNow.Date;
+            // Fix lệch múi giờ: Chuyển đầu ngày theo giờ địa phương sang UTC
+            var startOfLocalDayUtc = DateTime.Today.ToUniversalTime();
             var logs = await _dbContext.CheckInLogs
                 .AsNoTracking()
                 .Include(l => l.Member)
                 .ThenInclude(m => m!.Package)
-                .Where(l => l.CheckInTime >= startOfDay)
+                .Where(l => l.CheckInTime >= startOfLocalDayUtc)
                 .OrderByDescending(l => l.CheckInTime)
                 .Take(50)
                 .ToListAsync()
                 .ConfigureAwait(false);
-
             Application.Current?.Dispatcher.Invoke(() =>
             {
                 TodayLogs.Clear();
@@ -668,40 +782,21 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
-    /// Nạp danh sách hội viên từ SQLite.
+    /// Nạp danh sách hội viên từ SQLite kết hợp bộ lọc.
     /// </summary>
     public async Task LoadMembersAsync()
     {
-        if (_dbContext == null) return;
-
-        try
-        {
-            var members = await _dbContext.Members
-                .AsNoTracking()
-                .Include(m => m.Package)
-                .OrderByDescending(m => m.CreatedAt)
-                .ToListAsync()
-                .ConfigureAwait(false);
-
-            Application.Current?.Dispatcher.Invoke(() =>
-            {
-                MembersList.Clear();
-                foreach (var m in members)
-                {
-                    MembersList.Add(m);
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[MainViewModel] Lỗi load hội viên: {ex.Message}");
-        }
+        await FilterMembersAsync();
     }
 
     /// <summary>
-    /// Lọc danh sách hội viên theo từ khóa tìm kiếm.
+    /// Lọc danh sách hội viên theo từ khóa tìm kiếm (MemberSearchText) VÀ bộ lọc trạng thái (CurrentMemberFilter).
+    /// - Active: EndDate >= now &amp;&amp; IsActive == true
+    /// - ExpiringSoon: EndDate >= now &amp;&amp; EndDate &lt;= now.AddDays(7) &amp;&amp; IsActive == true
+    /// - Expired: EndDate &lt; now || IsActive == false
+    /// - All: Tất cả hội viên
     /// </summary>
-    private async Task FilterMembersAsync()
+    public async Task FilterMembersAsync()
     {
         if (_dbContext == null) return;
 
@@ -718,16 +813,46 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 query = query.Where(m => m.FullName.ToLower().Contains(kw) || m.PhoneNumber.Contains(kw));
             }
 
+            var now = DateTime.UtcNow;
+            var expiringThreshold = now.AddDays(7);
+
+            switch (CurrentMemberFilter)
+            {
+                case MemberFilterMode.Active:
+                    query = query.Where(m => m.EndDate >= now && m.IsActive == true);
+                    break;
+                case MemberFilterMode.ExpiringSoon:
+                    query = query.Where(m => m.EndDate >= now && m.EndDate <= expiringThreshold && m.IsActive == true);
+                    break;
+                case MemberFilterMode.Expired:
+                    query = query.Where(m => m.EndDate < now || m.IsActive == false);
+                    break;
+                case MemberFilterMode.All:
+                default:
+                    break;
+            }
+
             var results = await query.OrderByDescending(m => m.CreatedAt).ToListAsync();
 
-            Application.Current?.Dispatcher.Invoke(() =>
+            if (Application.Current?.Dispatcher != null)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MembersList.Clear();
+                    foreach (var m in results)
+                    {
+                        MembersList.Add(m);
+                    }
+                });
+            }
+            else
             {
                 MembersList.Clear();
                 foreach (var m in results)
                 {
                     MembersList.Add(m);
                 }
-            });
+            }
         }
         catch (Exception ex)
         {
@@ -746,6 +871,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             var packages = await _dbContext.Packages
                 .AsNoTracking()
+                .Include(p => p.Members)
                 .OrderBy(p => p.DurationDays)
                 .ToListAsync()
                 .ConfigureAwait(false);
@@ -816,14 +942,79 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
         else
         {
-            await _cameraService.StartAsync("0");
+            string src = SelectedCamera?.Source ?? _currentCameraSource;
+            await _cameraService.StartAsync(src);
             IsCameraRunning = true;
-            CameraStatusText = "Camera Live (DirectShow • 60 FPS)";
+            CameraStatusText = $"Camera Live ({SelectedCamera?.Name ?? "WebCam"} • 30 FPS)";
             CameraStatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
             StatusMessage = "Camera đã hoạt động trở lại.";
         }
     }
 
+
+    /// <summary>
+    /// Quét lại toàn bộ danh sách Camera phần cứng trên máy tính và cập nhật ComboBox.
+    /// </summary>
+    public async Task LoadAvailableCamerasAsync()
+    {
+        try
+        {
+            var cameras = await CameraDeviceService.EnumerateCamerasAsync();
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                AvailableCameras.Clear();
+                foreach (var cam in cameras)
+                {
+                    AvailableCameras.Add(cam);
+                }
+
+                // Chọn camera ban đầu
+                if (SelectedCamera == null && AvailableCameras.Count > 0)
+                {
+                    var target = AvailableCameras.FirstOrDefault(c => c.Source == _currentCameraSource)
+                              ?? AvailableCameras.FirstOrDefault(c => c.Index == 1)
+                              ?? AvailableCameras[0];
+                    _selectedCamera = target;
+                    OnPropertyChanged(nameof(SelectedCamera));
+                }
+
+                StatusMessage = $"Đã phát hiện {AvailableCameras.Count} camera trên hệ thống.";
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[MainViewModel] Lỗi quét camera: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Chuyển đổi nguồn camera đang stream sang thiết bị mới chọn một cách mượt mà.
+    /// </summary>
+    public async Task SwitchCameraSourceAsync(CameraDeviceInfo camera)
+    {
+        if (_cameraService == null || camera == null) return;
+        if (_currentCameraSource == camera.Source && _cameraService.IsRunning) return;
+
+        _currentCameraSource = camera.Source;
+        StatusMessage = $"Đang chuyển đổi sang {camera.Name}...";
+
+        try
+        {
+            await _cameraService.StopAsync();
+            await _cameraService.StartAsync(camera.Source);
+            IsCameraRunning = true;
+            CameraStatusText = $"Camera Live ({camera.Name} • 30 FPS)";
+            CameraStatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+            StatusMessage = $"Đã chuyển thành công sang {camera.Name}.";
+        }
+        catch (Exception ex)
+        {
+            CameraStatusText = "Lỗi kết nối camera";
+            CameraStatusColor = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+            StatusMessage = $"Không thể mở camera {camera.Name}: {ex.Message}";
+        }
+    }
     private void OnRegisterNewMember()
     {
         if (_cameraService == null || _faceEngine == null || _dbContext == null || _attendanceCoordinator == null)
@@ -836,6 +1027,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             return;
         }
 
+        // TẠM DỪNG AttendanceCoordinator trong lúc mở cửa sổ đăng ký để giải phóng tài nguyên và tránh ghi nhận nhầm
+        _attendanceCoordinator.Pause();
         try
         {
             var registerVm = new RegisterMemberViewModel(_cameraService, _faceEngine, _dbContext, _attendanceCoordinator, _audioService);
@@ -855,6 +1048,40 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             MessageBox.Show($"Lỗi khi mở giao diện đăng ký: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            // TIẾP TỤC nhận diện điểm danh sau khi đóng dialog đăng ký
+            _attendanceCoordinator.Resume();
+        }
+    }
+
+    private CustomerFacingWindow? _customerFacingWindow;
+
+    private void OnOpenCustomerFacingWindow()
+    {
+        try
+        {
+            if (_customerFacingWindow == null || !_customerFacingWindow.IsLoaded)
+            {
+                var vm = new CustomerFacingViewModel(_cameraService, _attendanceCoordinator);
+                _customerFacingWindow = new CustomerFacingWindow(vm)
+                {
+                    Owner = Application.Current?.MainWindow
+                };
+                _customerFacingWindow.Closed += (s, e) => _customerFacingWindow = null;
+                _customerFacingWindow.Show();
+                StatusMessage = "Đã mở màn hình phụ Kiosk Mode dành cho Khách Hàng.";
+            }
+            else
+            {
+                _customerFacingWindow.Activate();
+                _customerFacingWindow.AutoPositionToSecondaryScreen();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi khi mở Màn hình phụ Khách Hàng: {ex.Message}", "Lỗi HDMI", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -913,6 +1140,59 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private async Task OnViewMemberHistoryAsync(Member? member)
+    {
+        if (_dbContext == null || member == null) return;
+
+        SelectedHistoryMember = member;
+
+        try
+        {
+            var logs = await _dbContext.CheckInLogs
+                .AsNoTracking()
+                .Include(l => l.Member)
+                .Where(l => l.MemberId == member.Id)
+                .OrderByDescending(l => l.CheckInTime)
+                .Take(100)
+                .ToListAsync();
+
+            if (Application.Current?.Dispatcher != null)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    SelectedMemberHistory.Clear();
+                    foreach (var log in logs)
+                    {
+                        SelectedMemberHistory.Add(log);
+                    }
+                });
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var historyWindow = new Views.MemberHistoryWindow(member, _dbContext, SelectedMemberHistory)
+                    {
+                        Owner = Application.Current?.MainWindow
+                    };
+                    historyWindow.ShowDialog();
+                });
+            }
+            else
+            {
+                SelectedMemberHistory.Clear();
+                foreach (var log in logs)
+                {
+                    SelectedMemberHistory.Add(log);
+                }
+            }
+
+            StatusMessage = $"Đã tải {logs.Count} lượt điểm danh của hội viên '{member.FullName}'.";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi hiển thị lịch sử điểm danh: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void OnEditMember(Member? member)
     {
         if (_dbContext == null || _attendanceCoordinator == null || member == null) return;
@@ -958,7 +1238,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             MessageBox.Show($"Lỗi khi xóa hội viên: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
-
     private void UpdateClock()
     {
         SystemClockText = DateTime.Now.ToString("HH:mm:ss • dd/MM/yyyy");

@@ -4,9 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:MyGymManager.App.ViewModels"
+        xmlns:conv="clr-namespace:MyGymManager.App.Converters"
         mc:Ignorable="d"
         Title="Chỉnh Sửa Hội Viên &amp; Gia Hạn Gói Tập — Phuc Gym"
-        Height="630" Width="560"
+        Height="650" Width="560"
         WindowStartupLocation="CenterOwner"
         FontFamily="Segoe UI, Inter, Arial"
         Background="#F8F9FA"
@@ -14,6 +15,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <conv:GenderToBoolConverter x:Key="GenderToBoolConverter" />
 
         <SolidColorBrush x:Key="BrushPrimaryOrange" Color="#FF6B00" />
         <SolidColorBrush x:Key="BrushPrimaryOrangeHover" Color="#E65F00" />
@@ -76,33 +78,31 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="28">
+    <Grid Margin="24">
         <Grid.RowDefinitions>
             <!-- 1. Header -->
             <RowDefinition Height="Auto" />
-            <!-- 2. Form Content -->
+            <!-- 2. Form Content Tinh Gọn -->
             <RowDefinition Height="*" />
             <!-- 3. Actions -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,0,0,14" Margin="0,0,0,16">
+        <Border Grid.Row="0" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,14">
             <StackPanel>
-                <TextBlock Text="CHỈNH SỬA HỘI VIÊN &amp; GIA HẠN" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
-                <TextBlock Text="Cập nhật hồ sơ, bật/khóa thẻ hoặc gia hạn thời gian tập" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
+                <TextBlock Text="CHỈNH SỬA HỘI VIÊN" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
+                <TextBlock Text="Cập nhật hồ sơ, giới tính, trạng thái thẻ và gia hạn thời gian tập" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
             </StackPanel>
         </Border>
 
-        <!-- Form Card -->
+        <!-- Form Card Tinh Gọn: Họ tên, Giới tính, SĐT, Trạng thái (Hoạt động/Khóa), Gia hạn ngày -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>
-                <!-- Thông tin cơ bản -->
+                <!-- Thẻ Thông Tin Hội Viên Tinh Gọn -->
                 <Border Background="#FFFFFF" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,14">
                     <StackPanel>
-                        <TextBlock Text="Hồ Sơ Hội Viên" FontSize="14" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,12" />
-
-                        <!-- Họ và Tên -->
+                        <!-- 1. Họ và Tên -->
                         <TextBlock Text="Họ và Tên (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
                         <TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="10,0" VerticalContentAlignment="Center" FontSize="13" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12">
                             <TextBox.Resources>
@@ -112,9 +112,20 @@
                             </TextBox.Resources>
                         </TextBox>
 
-                        <!-- Số điện thoại -->
+                        <!-- 2. Giới tính: 2 RadioButton [Nam / Nữ] liên kết {Binding Gender} -->
+                        <TextBlock Text="Giới tính (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                            <RadioButton Content="Nam"
+                                         IsChecked="{Binding Gender, Converter={StaticResource GenderToBoolConverter}, ConverterParameter=Nam}"
+                                         GroupName="GenderEdit" FontWeight="600" FontSize="13" Margin="0,0,28,0" Cursor="Hand" />
+                            <RadioButton Content="Nữ"
+                                         IsChecked="{Binding Gender, Converter={StaticResource GenderToBoolConverter}, ConverterParameter=Nữ}"
+                                         GroupName="GenderEdit" FontWeight="600" FontSize="13" Cursor="Hand" />
+                        </StackPanel>
+
+                        <!-- 3. Số điện thoại -->
                         <TextBlock Text="Số điện thoại (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
-                        <TextBox Text="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="10,0" VerticalContentAlignment="Center" FontSize="13" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12">
+                        <TextBox Text="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="10,0" VerticalContentAlignment="Center" FontSize="13" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,14">
                             <TextBox.Resources>
                                 <Style TargetType="Border">
                                     <Setter Property="CornerRadius" Value="6" />
@@ -122,35 +133,48 @@
                             </TextBox.Resources>
                         </TextBox>
 
-                        <!-- Trạng thái hoạt động (IsActive) -->
-                        <CheckBox IsChecked="{Binding IsActive}" VerticalContentAlignment="Center" Margin="0,4,0,0">
-                            <TextBlock Text="Thẻ hội viên đang hoạt động (Cho phép quẹt mặt điểm danh)" FontSize="13" FontWeight="500" Foreground="{StaticResource BrushTextPrimary}" />
-                        </CheckBox>
+                        <!-- 4. Trạng thái (Hoạt động / Khóa) -->
+                        <TextBlock Text="Trạng thái thẻ hội viên" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
+                        <Border Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                            <CheckBox IsChecked="{Binding IsActive}" VerticalContentAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding IsActive, Converter={x:Null}}" FontSize="13" FontWeight="600">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="🟢 Đang Hoạt Động (Cho phép điểm danh Face ID)" />
+                                                <Setter Property="Foreground" Value="#047857" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                        <Setter Property="Text" Value="🔴 Đã Bị Khóa (Từ chối điểm danh vào tập)" />
+                                                        <Setter Property="Foreground" Value="#B91C1C" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </CheckBox>
+                        </Border>
                     </StackPanel>
                 </Border>
 
-                <!-- Tình trạng gói tập hiện tại & Gia hạn -->
+                <!-- 5. Tình Trạng Gói Tập & Gia Hạn Ngày -->
                 <Border Background="#FFFFFF" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,10">
                     <StackPanel>
-                        <TextBlock Text="Tình Trạng Gói Tập &amp; Gia Hạn" FontSize="14" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,12" />
-
                         <!-- Tóm tắt gói hiện tại -->
-                        <Border Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,14">
+                        <Grid Margin="0,0,0,12">
                             <StackPanel>
-                                <Grid Margin="0,0,0,4">
-                                    <TextBlock Text="Gói tập hiện hành:" FontSize="12" Foreground="{StaticResource BrushTextMuted}" />
-                                    <TextBlock Text="{Binding CurrentPackageName}" FontSize="13" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" HorizontalAlignment="Right" />
-                                </Grid>
-                                <Grid>
-                                    <TextBlock Text="Trạng thái hạn thẻ:" FontSize="12" Foreground="{StaticResource BrushTextMuted}" />
-                                    <TextBlock Text="{Binding ExpiryStatusText}" FontSize="12" FontWeight="600" HorizontalAlignment="Right" />
-                                </Grid>
+                                <TextBlock Text="GÓI TẬP HIỆN TẠI" FontSize="11" FontWeight="800" Foreground="{StaticResource BrushTextMuted}" />
+                                <TextBlock Text="{Binding CurrentPackageName}" FontSize="15" FontWeight="800" Foreground="{StaticResource BrushPrimaryOrange}" Margin="0,2,0,0" />
                             </StackPanel>
-                        </Border>
+                            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#F3F4F6" CornerRadius="8" Padding="10,4">
+                                <TextBlock Text="{Binding ExpiryStatusText}" FontSize="12" FontWeight="600" />
+                            </Border>
+                        </Grid>
 
-                        <!-- Checkbox chọn Gia hạn -->
-                        <CheckBox IsChecked="{Binding DoRenew}" VerticalContentAlignment="Center" Margin="0,0,0,10">
-                            <TextBlock Text="Gia hạn thêm thời gian tập cho hội viên này" FontSize="13" FontWeight="600" Foreground="{StaticResource BrushPrimaryOrange}" />
+                        <!-- Checkbox chọn Gia hạn ngày -->
+                        <CheckBox IsChecked="{Binding DoRenew}" VerticalContentAlignment="Center" Margin="0,4,0,10">
+                            <TextBlock Text="Gia hạn thêm thời gian tập cho hội viên này" FontSize="13" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
                         </CheckBox>
 
                         <!-- Panel chọn số ngày gia hạn (Chỉ hiện khi DoRenew = True) -->
@@ -174,7 +198,7 @@
                                         </TextBox.Resources>
                                     </TextBox>
 
-                                    <!-- Nút chọn nhanh (30, 90, 365) -->
+                                    <!-- Nút chọn nhanh (30, 90, 180, 365) -->
                                     <StackPanel Grid.Column="2" Orientation="Horizontal">
                                         <ComboBox ItemsSource="{Binding QuickRenewOptions}" SelectedItem="{Binding RenewDays}" Height="36" Width="90" FontSize="12" VerticalContentAlignment="Center" />
                                     </StackPanel>
