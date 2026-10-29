@@ -60,39 +60,21 @@ public static class DbInitializer
             var pStandard = allPkgs.FirstOrDefault(p => p.DurationDays == 30) ?? allPkgs[0];
             var pSilver = allPkgs.FirstOrDefault(p => p.DurationDays == 90) ?? allPkgs[0];
             var pGold = allPkgs.FirstOrDefault(p => p.DurationDays == 365) ?? allPkgs[0];
-                // Vector mẫu 512 chiều giả lập chuẩn ArcFace
-                float[] CreateSampleVector(int seed)
-                {
-                    var v = new float[512];
-                    var rnd = new Random(seed);
-                    float norm = 0f;
-                    for (int i = 0; i < 512; i++)
-                    {
-                        v[i] = (float)(rnd.NextDouble() * 2.0 - 1.0);
-                        norm += v[i] * v[i];
-                    }
-                    norm = MathF.Sqrt(norm);
-                    for (int i = 0; i < 512; i++) v[i] /= norm;
-                    return v;
-                }
+            // Hội viên 1: Còn hạn 90 ngày (Gói Silver) -> Thẻ xanh
+            var m1 = Member.Create("Nguyễn Văn An", "0901234567", 90, pSilver.Id, "Nam", cardUid: "RFID_101", qrKey: "QR_AN_0901234567");
 
-                // Hội viên 1: Còn hạn 90 ngày (Gói Silver) -> Test TC04 Thẻ xanh
-                var m1 = Member.Create("Nguyễn Văn An", "0901234567", 90, CreateSampleVector(101), pSilver.Id);
+            // Hội viên 2: Còn hạn 365 ngày (Gói Gold VIP) -> Thẻ xanh
+            var m2 = Member.Create("Trần Thị Bích", "0912345678", 365, pGold.Id, "Nữ", cardUid: "RFID_102", qrKey: "QR_BICH_0912345678");
 
-                // Hội viên 2: Còn hạn 365 ngày (Gói Gold VIP) -> Test TC04 Thẻ xanh
-                var m2 = Member.Create("Trần Thị Bích", "0912345678", 365, CreateSampleVector(102), pGold.Id);
+            // Hội viên 3: Hết hạn thẻ 10 ngày trước -> Thẻ hết hạn
+            var m3 = Member.Create("Lê Hoàng Cường", "0987654321", 30, pStandard.Id, "Nam", cardUid: "RFID_103", qrKey: "QR_CUONG_0987654321");
+            typeof(Member).GetProperty(nameof(Member.EndDate))?.SetValue(m3, DateTime.UtcNow.AddDays(-10));
 
-                // Hội viên 3: Hết hạn thẻ 10 ngày trước -> Test TC05 Thẻ đỏ hết hạn
-                var m3 = Member.Create("Lê Hoàng Cường", "0987654321", 30, CreateSampleVector(103), pStandard.Id);
-                // Đặt ngày hết hạn trong quá khứ để test kịch bản thẻ hết hạn
-                typeof(Member).GetProperty(nameof(Member.EndDate))?.SetValue(m3, DateTime.UtcNow.AddDays(-10));
+            // Hội viên 4: Còn hạn 30 ngày (Gói Standard)
+            var m4 = Member.Create("Phạm Minh Dũng", "0934567890", 30, pStandard.Id, "Nam", cardUid: "RFID_104", qrKey: "QR_DUNG_0934567890");
 
-                // Hội viên 4: Còn hạn 30 ngày (Gói Standard)
-                var m4 = Member.Create("Phạm Minh Dũng", "0934567890", 30, CreateSampleVector(104), pStandard.Id);
-
-                // Hội viên 5: Còn hạn 90 ngày (Gói Silver)
-                var m5 = Member.Create("Võ Thị Kim Em", "0978901234", 90, CreateSampleVector(105), pSilver.Id);
-
+            // Hội viên 5: Còn hạn 90 ngày (Gói Silver)
+            var m5 = Member.Create("Võ Thị Kim Em", "0978901234", 90, pSilver.Id, "Nữ", cardUid: "RFID_105", qrKey: "QR_EM_0978901234");
             await context.Members.AddRangeAsync(m1, m2, m3, m4, m5);
             await context.SaveChangesAsync();
         }

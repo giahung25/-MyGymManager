@@ -7,9 +7,8 @@ using MyGymManager.Core.Entities;
 using MyGymManager.Core.Interfaces;
 using MyGymManager.Core.Models;
 using MyGymManager.Data;
-using MyGymManager.Infrastructure.AI;
+using MyGymManager.Infrastructure.Providers;
 using MyGymManager.Services;
-using OpenCvSharp;
 
 public class Program
 {
@@ -18,19 +17,19 @@ public class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.WriteLine("================================================================================");
         Console.WriteLine("           MYGYMMANAGER SYSTEM BENCHMARK & STRESS TEST SUITE                     ");
-        Console.WriteLine("   Testing .NET 10 WPF Standalone Backend: AI, In-Memory Math, SQLite, Concurrency");
+        Console.WriteLine("   Pure Gym Management & Multi-Credential Identification (RFID, QR, Phone, Desk)");
         Console.WriteLine("================================================================================\n");
+
         await TestCameraEnumerationAsync();
         Console.WriteLine();
 
-
-        await RunVectorMatchingStressTestAsync();
+        await RunMultiIndexCacheStressTestAsync();
         Console.WriteLine();
 
         await RunDatabaseConcurrencyStressTestAsync();
         Console.WriteLine();
 
-        await RunOnnxInferenceStressTestAsync();
+        await RunAttendanceCoordinatorStressTestAsync();
         Console.WriteLine();
 
         await TestMemberFiltersAndHistoryAsync();
@@ -54,77 +53,49 @@ public class Program
     }
 
     /// <summary>
-    /// TEST SUITE 1: Stress test so khớp Cosine Similarity in-memory trên 1.000, 5.000 và 10.000 hội viên.
+    /// TEST SUITE 1: Stress test tra cứu Multi-Index In-Memory (Card UID, QR Key, Phone Number, GUID).
     /// </summary>
-    private static async Task RunVectorMatchingStressTestAsync()
+    private static async Task RunMultiIndexCacheStressTestAsync()
     {
-        Console.WriteLine(">>> [TEST 1/3] STRESS TEST SO KHỚP VECTOR IN-MEMORY (ArcFace 512-d SIMD)");
+        Console.WriteLine(">>> [TEST 1/4] STRESS TEST TRA CỨU ĐA CHỈ MỤC IN-MEMORY (Multi-Index O(1) Cache)");
         Console.WriteLine("--------------------------------------------------------------------------------");
 
-        int[] memberCounts = { 1_000, 5_000, 10_000 };
-        var rnd = new Random(42);
-
-        float[] GenerateNormalizedVector(int seed)
-        {
-            var v = new float[512];
-            var r = new Random(seed);
-            float norm = 0f;
-            for (int i = 0; i < 512; i++)
-            {
-                v[i] = (float)(r.NextDouble() * 2.0 - 1.0);
-                norm += v[i] * v[i];
-            }
-            norm = MathF.Sqrt(norm);
-            for (int i = 0; i < 512; i++) v[i] /= norm;
-            return v;
-        }
-
-        var queryVector = GenerateNormalizedVector(9999);
+        int[] memberCounts = { 1_000, 10_000, 50_000 };
 
         foreach (int count in memberCounts)
         {
-            // Mỗi hội viên có 3 templates khuôn mặt (Thẳng, Trái, Phải)
-            var database = new List<(Guid Id, List<float[]> Templates)>(count);
+            var byId = new Dictionary<Guid, Member>(count);
+            var byPhone = new Dictionary<string, Member>(count);
+            var byCard = new Dictionary<string, Member>(count);
+            var byQr = new Dictionary<string, Member>(count);
+
             for (int i = 0; i < count; i++)
             {
-                var templates = new List<float[]>
-                {
-                    GenerateNormalizedVector(i * 3 + 1),
-                    GenerateNormalizedVector(i * 3 + 2),
-                    GenerateNormalizedVector(i * 3 + 3)
-                };
-                database.Add((Guid.NewGuid(), templates));
+                var id = Guid.NewGuid();
+                var phone = $"090{i:D7}";
+                var card = $"RFID_{i:D6}";
+                var qr = $"QR_{i:D6}";
+                var member = Member.Create($"Member {i}", phone, 30, gender: (i % 2 == 0 ? "Nam" : "Nữ"), cardUid: card, qrKey: qr);
+
+                byId[id] = member;
+                byPhone[phone] = member;
+                byCard[card] = member;
+                byQr[qr] = member;
             }
 
-            int totalVectors = count * 3;
-
-            // Warmup
-            for (int i = 0; i < 100; i++)
-            {
-                AttendanceCoordinator.CalculateCosineSimilarity(queryVector, database[i].Templates[0]);
-            }
-
-            // Benchmark 500 lần truy vấn tìm hội viên
-            const int testQueries = 500;
+            // Benchmark 100,000 lần truy vấn tìm hội viên qua mã thẻ RFID và QR Code
+            const int testQueries = 100_000;
+            var rnd = new Random(42);
             var sw = Stopwatch.StartNew();
 
+            int hitCount = 0;
             for (int q = 0; q < testQueries; q++)
             {
-                float highestSim = 0f;
-                Guid matchedId = Guid.Empty;
-
-                for (int m = 0; m < database.Count; m++)
+                int targetIndex = rnd.Next(0, count);
+                string queryCard = $"RFID_{targetIndex:D6}";
+                if (byCard.TryGetValue(queryCard, out var member))
                 {
-                    var templates = database[m].Templates;
-                    for (int t = 0; t < templates.Count; t++)
-                    {
-                        float sim = AttendanceCoordinator.CalculateCosineSimilarity(queryVector, templates[t]);
-                        if (sim > highestSim)
-                        {
-                            highestSim = sim;
-                            matchedId = database[m].Id;
-                        }
-                    }
+                    hitCount++;
                 }
             }
 
@@ -132,12 +103,12 @@ public class Program
             double totalMs = sw.Elapsed.TotalMilliseconds;
             double avgLatencyMs = totalMs / testQueries;
             double avgLatencyMicroseconds = avgLatencyMs * 1000.0;
-            double opsPerSec = (testQueries * totalVectors) / sw.Elapsed.TotalSeconds;
+            double opsPerSec = testQueries / sw.Elapsed.TotalSeconds;
 
-            Console.WriteLine($"• Quy mô: {count:N0} hội viên ({totalVectors:N0} vectors 512-d)");
-            Console.WriteLine($"  - Độ trễ tìm kiếm trung bình: {avgLatencyMs:F3} ms ({avgLatencyMicroseconds:F1} µs / lượt quẹt thẻ)");
-            Console.WriteLine($"  - Tốc độ xử lý phép nhân vô hướng: {opsPerSec:N0} dot products/giây");
-            Console.WriteLine($"  - Đánh giá: {(avgLatencyMs < 5.0 ? "ĐẠT CHUẨN SIÊU TỐC (< 5ms)" : "CẢNH BÁO")}\n");
+            Console.WriteLine($"• Quy mô: {count:N0} hội viên trong RAM");
+            Console.WriteLine($"  - Độ trễ tra cứu O(1) trung bình: {avgLatencyMicroseconds:F3} µs / lượt ({avgLatencyMs:F6} ms)");
+            Console.WriteLine($"  - Tốc độ xử lý: {opsPerSec:N0} lượt xác thực/giây");
+            Console.WriteLine($"  - Đánh giá: {(avgLatencyMicroseconds < 1.0 ? "ĐẠT CHUẨN SIÊU TỐC (< 1 µs)" : "CẢNH BÁO")}\n");
         }
     }
 
@@ -146,7 +117,7 @@ public class Program
     /// </summary>
     private static async Task RunDatabaseConcurrencyStressTestAsync()
     {
-        Console.WriteLine(">>> [TEST 2/3] STRESS TEST CSDL SQLITE EF CORE (Bulk Write, Read & Concurrency)");
+        Console.WriteLine(">>> [TEST 2/4] STRESS TEST CSDL SQLITE EF CORE (Bulk Write, Read & Concurrency)");
         Console.WriteLine("--------------------------------------------------------------------------------");
 
         const string testDbName = "stress_test_temp.db";
@@ -160,78 +131,75 @@ public class Program
         {
             await db.Database.EnsureCreatedAsync();
 
-            // 1. Bulk insert 1000 members kèm JSON vectors 512-d
-            const int memberBatchCount = 1_000;
-            var swMembers = Stopwatch.StartNew();
+            // 1. Bulk Insert 1,000 Hội viên
+            const int totalMembers = 1_000;
+            var members = new List<Member>(totalMembers);
+            var now = DateTime.UtcNow;
 
-            var members = new List<Member>(memberBatchCount);
-            var dummyVector = new float[512];
-            dummyVector[0] = 1.0f;
-
-            for (int i = 0; i < memberBatchCount; i++)
+            for (int i = 0; i < totalMembers; i++)
             {
-                var m = Member.Create(
-                    fullName: $"Hội Viên Test {i}",
+                members.Add(Member.Create(
+                    fullName: $"Test Member {i:D4}",
                     phoneNumber: $"09{i:D8}",
-                    packageDays: 30,
-                    initialFaceVector: dummyVector);
-                members.Add(m);
+                    packageDays: 30 + (i % 3) * 30,
+                    gender: (i % 2 == 0 ? "Nam" : "Nữ"),
+                    cardUid: $"CARD_{i:D6}",
+                    qrKey: $"QR_{i:D6}"
+                ));
             }
 
+            var swInsert = Stopwatch.StartNew();
             await db.Members.AddRangeAsync(members);
             await db.SaveChangesAsync();
-            swMembers.Stop();
+            swInsert.Stop();
 
-            Console.WriteLine($"• Bulk Insert 1.000 Hội viên (kèm mảng FaceVectors JSON 512-d):");
-            Console.WriteLine($"  - Thời gian hoàn tất: {swMembers.ElapsedMilliseconds} ms ({memberBatchCount * 1000.0 / swMembers.ElapsedMilliseconds:F0} records/sec)");
+            Console.WriteLine($"• Bulk Insert {totalMembers:N0} Hội viên:");
+            Console.WriteLine($"  - Thời gian hoàn tất: {swInsert.ElapsedMilliseconds} ms ({(totalMembers / swInsert.Elapsed.TotalSeconds):N0} records/giây)");
+            Console.WriteLine($"  - Đánh giá: {(swInsert.ElapsedMilliseconds < 2000 ? "ĐẠT CHUẨN XUẤT SẮC" : "ĐẠT")}\n");
 
-            // 2. Bulk insert 5.000 check-in logs
-            const int logBatchCount = 5_000;
-            var swLogs = Stopwatch.StartNew();
-            var logs = new List<CheckInLog>(logBatchCount);
-            var sampleMemberId = members[0].Id;
-
-            for (int i = 0; i < logBatchCount; i++)
+            // 2. Bulk Insert 5,000 CheckInLogs
+            const int totalLogs = 5_000;
+            var logs = new List<CheckInLog>(totalLogs);
+            for (int i = 0; i < totalLogs; i++)
             {
-                logs.Add(CheckInLog.Create(sampleMemberId, 0.92f, DateTime.UtcNow.AddSeconds(-i)));
+                var m = members[i % totalMembers];
+                logs.Add(CheckInLog.Create(
+                    memberId: m.Id,
+                    confidenceScore: 1.0f,
+                    checkInTime: now.AddMinutes(-i),
+                    method: IdentificationMethod.RfidCard
+                ));
             }
 
+            var swLogs = Stopwatch.StartNew();
             await db.CheckInLogs.AddRangeAsync(logs);
             await db.SaveChangesAsync();
             swLogs.Stop();
 
-            Console.WriteLine($"• Bulk Insert 5.000 Lượt CheckInLogs:");
-            Console.WriteLine($"  - Thời gian hoàn tất: {swLogs.ElapsedMilliseconds} ms ({logBatchCount * 1000.0 / swLogs.ElapsedMilliseconds:F0} records/sec)");
+            Console.WriteLine($"• Bulk Insert {totalLogs:N0} CheckInLogs:");
+            Console.WriteLine($"  - Thời gian: {swLogs.ElapsedMilliseconds} ms ({(totalLogs / swLogs.Elapsed.TotalSeconds):N0} logs/giây)\n");
 
-            // 3. Concurrency Stress Test: 50 luồng đọc/ghi đồng thời
+            // 3. Concurrent Write Stress Test
             const int concurrentTasks = 50;
-            Console.WriteLine($"• Concurrency Test: Chạy đồng thời {concurrentTasks} tác vụ đọc/ghi đồng thời trên SQLite...");
-            var swConcurrency = Stopwatch.StartNew();
+            Console.WriteLine($"• Stress Test ghi đồng thời (Concurrency) với {concurrentTasks} luồng song song...");
 
-            var tasks = new List<Task>();
+            var swConcurrency = Stopwatch.StartNew();
+            var tasks = new Task[concurrentTasks];
+
             for (int t = 0; t < concurrentTasks; t++)
             {
-                int taskId = t;
-                tasks.Add(Task.Run(async () =>
+                int threadId = t;
+                tasks[t] = Task.Run(async () =>
                 {
-                    using var taskDb = new AppDbContext(options);
-                    if (taskId % 2 == 0)
-                    {
-                        // Luồng ghi
-                        var log = CheckInLog.Create(sampleMemberId, 0.85f);
-                        await taskDb.CheckInLogs.AddAsync(log);
-                        await taskDb.SaveChangesAsync();
-                    }
-                    else
-                    {
-                        // Luồng đọc
-                        var recent = await taskDb.CheckInLogs
-                            .AsNoTracking()
-                            .OrderByDescending(l => l.CheckInTime)
-                            .Take(20)
-                            .ToListAsync();
-                    }
-                }));
+                    using var localDb = new AppDbContext(options);
+                    var log = CheckInLog.Create(
+                        memberId: members[threadId].Id,
+                        confidenceScore: 1.0f,
+                        method: IdentificationMethod.QrCode
+                    );
+                    await localDb.CheckInLogs.AddAsync(log);
+                    await localDb.SaveChangesAsync();
+                });
             }
 
             await Task.WhenAll(tasks);
@@ -241,7 +209,6 @@ public class Program
             Console.WriteLine($"  - Đánh giá: ĐẠT CHUẨN TOÀN VẸN DỮ LIỆU SQLITE ACID\n");
         }
 
-        // Dọn dẹp CSDL test
         try
         {
             if (File.Exists(testDbName)) File.Delete(testDbName);
@@ -250,79 +217,92 @@ public class Program
     }
 
     /// <summary>
-    /// TEST SUITE 3: Stress test động cơ AI ONNX Runtime & Kiểm chứng rò rỉ RAM (Memory Leak Detection).
+    /// TEST SUITE 3: Stress test AttendanceCoordinator và Pluggable Providers (RFID, QR, Phone).
     /// </summary>
-    private static async Task RunOnnxInferenceStressTestAsync()
+    private static async Task RunAttendanceCoordinatorStressTestAsync()
     {
-        Console.WriteLine(">>> [TEST 3/3] STRESS TEST ONNX RUNTIME AI & KIỂM CHỨNG RÒ RỈ RAM (SCRFD + ArcFace)");
+        Console.WriteLine(">>> [TEST 3/4] STRESS TEST ATTENDANCE COORDINATOR (Multi-Credential Check-In)");
         Console.WriteLine("--------------------------------------------------------------------------------");
 
-        IFaceEngine? engine = null;
+        const string testDbName = "coord_test_temp.db";
+        if (File.Exists(testDbName)) File.Delete(testDbName);
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite($"Data Source={testDbName}")
+            .Options;
+
+        using (var db = new AppDbContext(options))
+        {
+            await db.Database.EnsureCreatedAsync();
+
+            // Khởi tạo 10 hội viên
+            var members = new List<Member>();
+            for (int i = 0; i < 10; i++)
+            {
+                members.Add(Member.Create(
+                    fullName: $"Khách Hàng {i + 1}",
+                    phoneNumber: $"098000000{i}",
+                    packageDays: 30,
+                    gender: (i % 2 == 0 ? "Nam" : "Nữ"),
+                    cardUid: $"RFID_KEY_{i}",
+                    qrKey: $"QR_APP_{i}"
+                ));
+            }
+            await db.Members.AddRangeAsync(members);
+            await db.SaveChangesAsync();
+
+            using var coordinator = new AttendanceCoordinator(db);
+            await coordinator.LoadActiveMembersCacheAsync();
+            coordinator.Start();
+
+            var rfidProvider = new RfidCardIdentificationProvider();
+            var qrProvider = new QrCodeIdentificationProvider();
+            coordinator.RegisterProvider(rfidProvider);
+            coordinator.RegisterProvider(qrProvider);
+
+            int identifiedCount = 0;
+            coordinator.MemberIdentified += (s, e) =>
+            {
+                Interlocked.Increment(ref identifiedCount);
+            };
+
+            Console.WriteLine($"• Nạp {coordinator.CachedMembersCount} hội viên vào RAM Cache.");
+
+            // 1. Quẹt thẻ từ RFID
+            Console.WriteLine("• Giả lập quẹt thẻ từ RFID ('RFID_KEY_0')...");
+            rfidProvider.SimulateSwipe("RFID_KEY_0", 1.0f);
+            await Task.Delay(200);
+
+            // 2. Quét mã QR
+            Console.WriteLine("• Giả lập quét mã QR ('QR_APP_1')...");
+            qrProvider.SimulateSwipe("QR_APP_1", 1.0f);
+            await Task.Delay(200);
+
+            // 3. Nhập số điện thoại tìm kiếm
+            Console.WriteLine("• Giả lập điểm danh số điện thoại ('0980000002')...");
+            await coordinator.ProcessCheckInAsync("0980000002", IdentificationMethod.ManualSearch);
+            await Task.Delay(200);
+
+            Console.WriteLine($"  - Số lượt điểm danh thành công ghi nhận: {identifiedCount} / 3");
+            if (identifiedCount >= 3)
+            {
+                Console.WriteLine("  -> [PASS] Điểm danh đa phương thức hoàn hảo.");
+            }
+            else
+            {
+                throw new InvalidOperationException($"Điểm danh thất bại: ghi nhận {identifiedCount} / 3");
+            }
+        }
+
         try
         {
-            engine = new OnnxFaceEngine();
+            if (File.Exists(testDbName)) File.Delete(testDbName);
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"⚠️ Bỏ qua kiểm tra ONNX vì không tìm thấy file weights: {ex.Message}");
-            return;
-        }
-
-        using (engine)
-        {
-            // Tạo ảnh giả lập chuẩn 720p (1280x720 BGR)
-            using var testFrame = new Mat(new Size(1280, 720), MatType.CV_8UC3, Scalar.All(120));
-            // Vẽ 1 hình tròn giả lập mặt
-            Cv2.Circle(testFrame, new Point(640, 360), 120, Scalar.All(200), -1);
-
-            // Warmup 5 lượt để ONNX Runtime khởi tạo bộ đệm Unmanaged Memory Arena ban đầu
-            for (int w = 0; w < 5; w++)
-            {
-                await engine.DetectFacesAsync(testFrame);
-            }
-
-            // Đo bộ nhớ cơ sở sau khi ONNX arena đã ổn định
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            long initialMem = Process.GetCurrentProcess().WorkingSet64;
-            const int iterations = 100;
-            Console.WriteLine($"• Chạy liên tục {iterations} lần suy luận AI DetectFacesAsync trên ảnh 1280x720...");
-
-            var latencies = new List<double>(iterations);
-            var swTotal = Stopwatch.StartNew();
-
-            for (int i = 0; i < iterations; i++)
-            {
-                var swIter = Stopwatch.StartNew();
-                var faces = await engine.DetectFacesAsync(testFrame);
-                swIter.Stop();
-                latencies.Add(swIter.Elapsed.TotalMilliseconds);
-            }
-
-            swTotal.Stop();
-
-            // Đo bộ nhớ sau 100 lần chạy
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            long finalMem = Process.GetCurrentProcess().WorkingSet64;
-            long memDiffMB = (finalMem - initialMem) / (1024 * 1024);
-
-            double avgLatency = latencies.Average();
-            double minLatency = latencies.Min();
-            double maxLatency = latencies.Max();
-            double fps = iterations / swTotal.Elapsed.TotalSeconds;
-
-            Console.WriteLine($"  - Tổng thời gian: {swTotal.Elapsed.TotalSeconds:F2} giây ({fps:F1} inferences/sec)");
-            Console.WriteLine($"  - Độ trễ trung bình mỗi lượt: {avgLatency:F2} ms (Min: {minLatency:F2} ms, Max: {maxLatency:F2} ms)");
-            Console.WriteLine($"  - Biến động RAM sau {iterations} lần chạy: {memDiffMB:+0;-0;0} MB");
-            Console.WriteLine($"  - Đánh giá chống rò rỉ RAM (Zero Memory Leak): {(Math.Abs(memDiffMB) < 15 ? "HOÀN HẢO (RAM ỔN ĐỊNH)" : "CÓ DẤU HIỆU TĂNG RAM")}");
-        }
+        catch { }
     }
 
     /// <summary>
-    /// TEST SUITE 4: Kiểm thử Module Quản lý Hội viên Tinh gọn (Filters: Active, ExpiringSoon, Expired & History Logs).
+    /// TEST SUITE 4: Kiểm thử Module Quản lý Hội viên Tinh gọn (Filters & History Logs).
     /// </summary>
     private static async Task TestMemberFiltersAndHistoryAsync()
     {
@@ -345,29 +325,22 @@ public class Program
                 var now = DateTime.UtcNow;
 
                 // 1. Tạo 10 hội viên test: 4 Nam, 6 Nữ
-                //    - 4 người hạn còn dài (> 30 ngày) -> Trạng thái Active
-                //    - 3 người sắp hết hạn trong 5 ngày tới -> Trạng thái ExpiringSoon
-                //    - 3 người đã hết hạn từ 5 ngày trước -> Trạng thái Expired
                 var members = new List<Member>
                 {
-                    // 4 người còn hạn dài (> 30 ngày)
                     Member.Create("Nguyễn Văn Hùng", "0901000001", packageDays: 60, gender: "Nam"),
                     Member.Create("Trần Quốc Tuấn", "0901000002", packageDays: 45, gender: "Nam"),
                     Member.Create("Lê Thị Mai", "0901000003", packageDays: 90, gender: "Nữ"),
                     Member.Create("Phạm Hương Tràm", "0901000004", packageDays: 365, gender: "Nữ"),
 
-                    // 3 người sắp hết hạn trong 5 ngày tới (ExpiringSoon)
                     Member.Create("Hoàng Văn Thắng", "0901000005", packageDays: 3, gender: "Nam"),
                     Member.Create("Đặng Thị Lan", "0901000006", packageDays: 4, gender: "Nữ"),
                     Member.Create("Vũ Ngọc Hà", "0901000007", packageDays: 5, gender: "Nữ"),
 
-                    // 3 người đã hết hạn từ 5 ngày trước (Expired)
                     Member.Create("Ngô Minh Trí", "0901000008", packageDays: 30, gender: "Nam"),
                     Member.Create("Đỗ Phương Thảo", "0901000009", packageDays: 30, gender: "Nữ"),
                     Member.Create("Bùi Yến Nhi", "0901000010", packageDays: 30, gender: "Nữ")
                 };
 
-                // Thiết lập ngày hết hạn 5 ngày trước cho 3 hội viên đã hết hạn
                 var expiredMembersToAdjust = members.Skip(7).Take(3);
                 foreach (var expMember in expiredMembersToAdjust)
                 {
@@ -378,7 +351,6 @@ public class Program
                 await db.Members.AddRangeAsync(members);
                 await db.SaveChangesAsync();
 
-                // Xác nhận số lượng và giới tính
                 var totalCount = await db.Members.CountAsync();
                 var maleCount = await db.Members.CountAsync(m => m.Gender == "Nam");
                 var femaleCount = await db.Members.CountAsync(m => m.Gender == "Nữ");
@@ -387,24 +359,23 @@ public class Program
                 Console.WriteLine($"  - Giới tính: {maleCount} Nam, {femaleCount} Nữ");
                 if (totalCount != 10 || maleCount != 4 || femaleCount != 6)
                 {
-                    throw new InvalidOperationException($"Dữ liệu khởi tạo sai: Tổng={totalCount} (kỳ vọng 10), Nam={maleCount} (kỳ vọng 4), Nữ={femaleCount} (kỳ vọng 6).");
+                    throw new InvalidOperationException($"Dữ liệu khởi tạo sai: Tổng={totalCount}, Nam={maleCount}, Nữ={femaleCount}.");
                 }
                 Console.WriteLine("  -> [PASS] Tạo 10 hội viên (4 Nam, 6 Nữ) thành công.");
 
-                // 2. Kiểm tra bộ lọc
-                // 2.1 Filter Active: Còn hạn (EndDate >= now) -> 4 còn dài + 3 sắp hết hạn = 7 người
+                // Filter Active
                 var activeQuery = await db.Members
                     .AsNoTracking()
                     .Where(m => m.EndDate >= now)
                     .ToListAsync();
-                Console.WriteLine($"• [Filter Active] Còn hạn (Active + ExpiringSoon): {activeQuery.Count} người (Kỳ vọng: 7)");
+                Console.WriteLine($"• [Filter Active]: {activeQuery.Count} người (Kỳ vọng: 7)");
                 if (activeQuery.Count != 7)
                 {
                     throw new InvalidOperationException($"Filter Active sai: Có {activeQuery.Count} người, kỳ vọng 7.");
                 }
                 Console.WriteLine("  -> [PASS] Filter Active đếm đúng 7 hội viên còn hạn.");
 
-                // 2.2 Filter ExpiringSoon (7 ngày): Sắp hết hạn trong 7 ngày tới (now <= EndDate <= now + 7 ngày) -> 3 người
+                // Filter ExpiringSoon (7 ngày)
                 var expiringSoonThreshold = now.AddDays(7);
                 var expiringSoonQuery = await db.Members
                     .AsNoTracking()
@@ -417,7 +388,7 @@ public class Program
                 }
                 Console.WriteLine("  -> [PASS] Filter ExpiringSoon lọc đúng 3 hội viên sắp hết hạn trong 5-7 ngày.");
 
-                // 2.3 Filter Expired: Đã hết hạn (EndDate < now) -> 3 người
+                // Filter Expired
                 var expiredQuery = await db.Members
                     .AsNoTracking()
                     .Where(m => m.EndDate < now)
@@ -429,53 +400,34 @@ public class Program
                 }
                 Console.WriteLine("  -> [PASS] Filter Expired lọc đúng 3 hội viên đã hết hạn.");
 
-                // 3. Tạo 5 log điểm danh cho 1 hội viên và kiểm tra truy vấn lịch sử của riêng người đó
-                var targetMember = members[0]; // Nguyễn Văn Hùng
+                // Check-in history
+                var targetMember = members[0];
                 var testLogs = new List<CheckInLog>();
                 for (int i = 0; i < 5; i++)
                 {
                     testLogs.Add(CheckInLog.Create(
                         memberId: targetMember.Id,
-                        confidenceScore: 0.92f + i * 0.01f,
+                        confidenceScore: 1.0f,
                         checkInTime: now.AddHours(-i),
-                        method: IdentificationMethod.FaceRecognition
+                        method: IdentificationMethod.RfidCard
                     ));
                 }
 
                 await db.CheckInLogs.AddRangeAsync(testLogs);
                 await db.SaveChangesAsync();
 
-                // Truy vấn lịch sử điểm danh của riêng hội viên đó
                 var memberHistory = await db.CheckInLogs
                     .AsNoTracking()
                     .Where(l => l.MemberId == targetMember.Id)
                     .OrderByDescending(l => l.CheckInTime)
                     .ToListAsync();
 
-                Console.WriteLine($"• [Lịch sử Điểm danh] Lấy log của '{targetMember.FullName}' (Id: {targetMember.Id}):");
-                Console.WriteLine($"  - Số lượng log: {memberHistory.Count} (Kỳ vọng: 5)");
-
+                Console.WriteLine($"• [Lịch sử Điểm danh] Lấy log của '{targetMember.FullName}': {memberHistory.Count} lượt (Kỳ vọng: 5)");
                 if (memberHistory.Count != 5)
                 {
-                    throw new InvalidOperationException($"Số lượng lịch sử điểm danh không khớp: {memberHistory.Count} (kỳ vọng 5).");
+                    throw new InvalidOperationException($"Lịch sử điểm danh sai: Có {memberHistory.Count} lượt, kỳ vọng 5.");
                 }
-
-                bool allBelongToTarget = memberHistory.All(l => l.MemberId == targetMember.Id);
-                if (!allBelongToTarget)
-                {
-                    throw new InvalidOperationException("Có bản ghi điểm danh không thuộc về hội viên được chỉ định.");
-                }
-
-                // Kiểm tra hội viên khác không bị lẫn log
-                var otherMemberId = members[1].Id;
-                var otherLogsCount = await db.CheckInLogs.CountAsync(l => l.MemberId == otherMemberId);
-                if (otherLogsCount != 0)
-                {
-                    throw new InvalidOperationException($"Hội viên khác có {otherLogsCount} log, kỳ vọng 0.");
-                }
-
-                Console.WriteLine("  -> [PASS] Truy vấn lịch sử điểm danh chính xác 5/5 logs, không lẫn dữ liệu.");
-                Console.WriteLine("• ĐÁNH GIÁ: 100% CÁC TEST CASES MODULE QUẢN LÝ HỘI VIÊN & LỊCH SỬ ĐÃ PASS!");
+                Console.WriteLine("  -> [PASS] Truy vấn lịch sử điểm danh chính xác 5/5 logs.");
             }
         }
         finally

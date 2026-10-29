@@ -59,8 +59,6 @@ public class CustomerFacingViewModel : INotifyPropertyChanged, IDisposable
 
     private string _displayScreenInfo = "Đang kiểm tra màn hình HDMI...";
     private int _isRenderingUi = 0;
-    private FaceBox? _lastDetectedFace;
-    private DateTime _lastFaceDetectedTime = DateTime.MinValue;
     private bool _disposed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -94,8 +92,7 @@ public class CustomerFacingViewModel : INotifyPropertyChanged, IDisposable
         if (_coordinator != null)
         {
             _coordinator.MemberIdentified += OnMemberIdentified;
-            _coordinator.FaceDetected += OnFaceDetected;
-            _coordinator.UnidentifiedFaceDetected += OnUnidentifiedFaceDetected;
+            _coordinator.UnidentifiedDetected += OnUnidentifiedDetected;
         }
     }
 
@@ -293,25 +290,7 @@ public class CustomerFacingViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            using var displayMat = frame.Clone();
-
-            // Vẽ Bounding Box nếu có khuôn mặt trong khung hình gần nhất (< 600ms)
-            if (_lastDetectedFace != null && (DateTime.UtcNow - _lastFaceDetectedTime).TotalMilliseconds < 600)
-            {
-                var rect = _lastDetectedFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, displayMat.Width, displayMat.Height));
-                if (rect.Width > 0 && rect.Height > 0)
-                {
-                    // Màu cam thể thao #FF6B00 trong BGR
-                    var orangeColor = new Scalar(0, 107, 255);
-                    Cv2.Rectangle(displayMat, rect, orangeColor, 3);
-
-                    string label = $"XÁC THỰC FACE ID ({_lastDetectedFace.Score * 100:F0}%)";
-                    var textPos = new OpenCvSharp.Point(rect.X, Math.Max(28, rect.Y - 10));
-                    Cv2.PutText(displayMat, label, textPos, HersheyFonts.HersheySimplex, 0.7, orangeColor, 2, LineTypes.AntiAlias);
-                }
-            }
-
-            var bitmap = BitmapSourceConverter.ToBitmapSource(displayMat);
+            var bitmap = BitmapSourceConverter.ToBitmapSource(frame);
             bitmap.Freeze();
 
             Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
@@ -332,31 +311,23 @@ public class CustomerFacingViewModel : INotifyPropertyChanged, IDisposable
             Interlocked.Exchange(ref _isRenderingUi, 0);
         }
     }
-
-    private void OnFaceDetected(object? sender, FaceBox? faceBox)
+    private void OnUnidentifiedDetected(object? sender, string identifier)
     {
-        _lastDetectedFace = faceBox;
-        _lastFaceDetectedTime = DateTime.UtcNow;
-        IsFaceInFrame = faceBox != null;
-    }
-
-    private void OnUnidentifiedFaceDetected(object? sender, float score)
-    {
-        // Khi phát hiện người lạ chưa có trong hệ thống
         if (!IsMemberIdentified)
         {
             Application.Current?.Dispatcher.Invoke(() =>
             {
-                StatusBadgeText = "👁️ ĐANG NHẬN DIỆN KHUÔN MẶT...";
-                StatusBadgeBg = new SolidColorBrush(Color.FromRgb(30, 41, 59));
-                StatusBadgeFg = new SolidColorBrush(Color.FromRgb(255, 107, 0));
+                MemberName = $"Mã '{identifier}' chưa đăng ký";
+                StatusBadgeText = "⚠️ ĐỊNH DANH CHƯA ĐĂNG KÝ";
+                StatusBadgeBg = new SolidColorBrush(Color.FromRgb(254, 243, 199));
+                StatusBadgeFg = new SolidColorBrush(Color.FromRgb(180, 83, 9));
             });
         }
     }
 
     private void OnMemberIdentified(object? sender, MemberIdentifiedEventArgs e)
     {
-        HandleMemberIdentified(e.Member, e.Confidence, IdentificationMethod.FaceRecognition);
+        HandleMemberIdentified(e.Member, e.Confidence, e.Method);
     }
 
     /// <summary>
@@ -539,8 +510,7 @@ public class CustomerFacingViewModel : INotifyPropertyChanged, IDisposable
         if (_coordinator != null)
         {
             _coordinator.MemberIdentified -= OnMemberIdentified;
-            _coordinator.FaceDetected -= OnFaceDetected;
-            _coordinator.UnidentifiedFaceDetected -= OnUnidentifiedFaceDetected;
+            _coordinator.UnidentifiedDetected -= OnUnidentifiedDetected;
         }
     }
 }

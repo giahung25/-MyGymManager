@@ -16,7 +16,6 @@ using MyGymManager.Core.Events;
 using MyGymManager.Core.Interfaces;
 using MyGymManager.Core.Models;
 using MyGymManager.Data;
-using MyGymManager.Infrastructure.AI;
 using MyGymManager.Infrastructure.Camera;
 using MyGymManager.Services;
 using OpenCvSharp;
@@ -149,7 +148,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private readonly DispatcherTimer _clockTimer;
     private readonly ICameraService? _cameraService;
-    private readonly IFaceEngine? _faceEngine;
     private readonly AttendanceCoordinator? _attendanceCoordinator;
     private readonly AppDbContext? _dbContext;
     private readonly AudioNotificationService? _audioService;
@@ -412,13 +410,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     public MainViewModel(
         ICameraService cameraService,
-        IFaceEngine faceEngine,
         AttendanceCoordinator attendanceCoordinator,
         AppDbContext dbContext,
         AudioNotificationService audioService)
     {
         _cameraService = cameraService;
-        _faceEngine = faceEngine;
         _attendanceCoordinator = attendanceCoordinator;
         _dbContext = dbContext;
         _audioService = audioService;
@@ -471,8 +467,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_attendanceCoordinator != null)
         {
             _attendanceCoordinator.MemberIdentified += OnMemberIdentified;
-            _attendanceCoordinator.UnidentifiedFaceDetected += OnUnidentifiedFaceDetected;
-            _attendanceCoordinator.FaceDetected += OnFaceDetected;
+            _attendanceCoordinator.UnidentifiedDetected += OnUnidentifiedDetected;
         }
         // Khởi động đồng hồ hệ thống cập nhật mỗi giây
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -484,7 +479,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>
     /// Constructor không tham số dành cho XAML Designer / Fallback.
     /// </summary>
-    public MainViewModel() : this(null!, null!, null!, null!, null!)
+    public MainViewModel() : this(null!, null!, null!, null!)
     {
     }
 
@@ -646,9 +641,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
-    /// Xử lý sự kiện phát hiện khuôn mặt lạ không khớp hội viên nào.
+    /// Xử lý sự kiện phát hiện định danh lạ (thẻ từ / mã QR / số điện thoại) chưa được đăng ký trong hệ thống.
     /// </summary>
-    private void OnUnidentifiedFaceDetected(object? sender, float score)
+    private void OnUnidentifiedDetected(object? sender, string identifier)
     {
         Application.Current?.Dispatcher.Invoke(() =>
         {
@@ -656,15 +651,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             MemberFullName = "Khách Chưa Đăng Ký";
             MemberPhoneNumber = "Vui lòng đăng ký hội viên mới";
             MemberPackageName = "Chưa có gói tập";
-            MemberExpiryText = "Không tìm thấy hồ sơ khuôn mặt tương ứng";
-            MemberStatusBadgeText = "⚠️ KHÔNG NHẬN DIỆN ĐƯỢC";
+            MemberExpiryText = $"Mã định danh chưa gán: {identifier}";
+            MemberStatusBadgeText = "⚠️ CHƯA ĐĂNG KÝ";
             MemberStatusBadgeBg = new SolidColorBrush(Color.FromRgb(254, 243, 199)); // Vàng nhạt
             MemberStatusBadgeFg = new SolidColorBrush(Color.FromRgb(180, 83, 9));    // Vàng cam đậm
             StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));          // VÀNG / CAM
 
-            StatusMessage = $"Phát hiện khuôn mặt lạ (Score: {score:F2}). Nhấn '+ Đăng ký Face ID mới' để tạo hồ sơ.";
+            StatusMessage = $"Phát hiện định danh lạ ('{identifier}'). Nhấn '+ Đăng ký Hội Viên' để tạo hồ sơ.";
 
-            // Cooldown 4 giây chống spam âm thanh bíp khi có mặt lạ đứng trước camera
             var now = DateTime.UtcNow;
             if ((now - _lastUnidentifiedBeepTime).TotalSeconds >= 4)
             {
@@ -1017,21 +1011,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
     private void OnRegisterNewMember()
     {
-        if (_cameraService == null || _faceEngine == null || _dbContext == null || _attendanceCoordinator == null)
+        if (_dbContext == null || _attendanceCoordinator == null)
         {
             MessageBox.Show(
-                "Các dịch vụ hệ thống (Camera / AI / CSDL) chưa sẵn sàng.",
+                "Các dịch vụ hệ thống chưa sẵn sàng.",
                 "Thông báo",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return;
         }
 
-        // TẠM DỪNG AttendanceCoordinator trong lúc mở cửa sổ đăng ký để giải phóng tài nguyên và tránh ghi nhận nhầm
-        _attendanceCoordinator.Pause();
         try
         {
-            var registerVm = new RegisterMemberViewModel(_cameraService, _faceEngine, _dbContext, _attendanceCoordinator, _audioService);
+            var registerVm = new RegisterMemberViewModel(_dbContext, _attendanceCoordinator, _audioService);
             var window = new Views.RegisterMemberWindow(registerVm)
             {
                 Owner = Application.Current?.MainWindow
@@ -1040,7 +1032,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             if (window.ShowDialog() == true)
             {
                 _ = LoadMembersAsync();
-                StatusMessage = "Đã lưu và kích hoạt Face ID cho hội viên mới thành công!";
+                StatusMessage = "Đã lưu thông tin hội viên mới thành công!";
                 StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
                 _audioService?.PlayCheckInSuccess();
             }
@@ -1048,11 +1040,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             MessageBox.Show($"Lỗi khi mở giao diện đăng ký: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            // TIẾP TỤC nhận diện điểm danh sau khi đóng dialog đăng ký
-            _attendanceCoordinator.Resume();
         }
     }
 
@@ -1270,7 +1257,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_attendanceCoordinator != null)
         {
             _attendanceCoordinator.MemberIdentified -= OnMemberIdentified;
-            _attendanceCoordinator.UnidentifiedFaceDetected -= OnUnidentifiedFaceDetected;
+            _attendanceCoordinator.UnidentifiedDetected -= OnUnidentifiedDetected;
         }
 
         _disposed = true;

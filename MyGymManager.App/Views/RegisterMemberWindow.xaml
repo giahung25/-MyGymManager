@@ -4,14 +4,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:MyGymManager.App.ViewModels"
-        xmlns:conv="clr-namespace:MyGymManager.App.Converters"
         mc:Ignorable="d"
-        Title="Đăng Ký Hội Viên Mới &amp; Quét Face ID — Phuc Gym"
-        Height="720" Width="920"
-        MinWidth="820" MinHeight="560"
+        Title="Đăng Ký Hội Viên Mới — Phuc Gym"
+        Height="640" Width="560"
         WindowStartupLocation="CenterOwner"
         FontFamily="Segoe UI, Inter, Arial"
-        Background="#F8F9FA">
+        Background="#F8F9FA"
+        ResizeMode="NoResize">
 
     <Window.Resources>
         <SolidColorBrush x:Key="BrushPrimaryOrange" Color="#FF6B00" />
@@ -20,18 +19,16 @@
         <SolidColorBrush x:Key="BrushTextPrimary" Color="#111827" />
         <SolidColorBrush x:Key="BrushTextSecondary" Color="#4B5563" />
         <SolidColorBrush x:Key="BrushTextMuted" Color="#9CA3AF" />
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
-        <conv:GenderToBoolConverter x:Key="GenderToBoolConverter" />
 
         <Style x:Key="DialogCard" TargetType="Border">
             <Setter Property="Background" Value="#FFFFFF" />
             <Setter Property="BorderBrush" Value="#E5E7EB" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="20" />
+            <Setter Property="Padding" Value="24" />
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="12" Color="#000000" Opacity="0.04" ShadowDepth="1" Direction="270" />
+                    <DropShadowEffect BlurRadius="14" Color="#000000" Opacity="0.05" ShadowDepth="2" Direction="270" />
                 </Setter.Value>
             </Setter>
         </Style>
@@ -91,44 +88,33 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="24">
+    <Grid Margin="28">
         <Grid.RowDefinitions>
             <!-- 1. Header -->
             <RowDefinition Height="Auto" />
-            <!-- 2. Main Form Content (2 Columns) -->
+            <!-- 2. Form Content -->
             <RowDefinition Height="*" />
-            <!-- 3. Bottom Action Bar -->
+            <!-- 3. Actions -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Margin="0,0,0,18" Padding="0,0,0,12" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
-            <Grid>
-                <StackPanel>
-                    <TextBlock Text="ĐĂNG KÝ HỘI VIÊN MỚI" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
-                    <TextBlock Text="Thu thập thông tin hội viên &amp; chụp khuôn mặt mẫu (Multi-Template Face ID)" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
-                </StackPanel>
-            </Grid>
+        <Border Grid.Row="0" Margin="0,0,0,16" Padding="0,0,0,12" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
+            <StackPanel>
+                <TextBlock Text="ĐĂNG KÝ HỘI VIÊN MỚI" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
+                <TextBlock Text="Nhập thông tin hội viên nhanh chóng để kích hoạt thẻ tập tại quầy" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
+            </StackPanel>
         </Border>
 
-        <!-- Form 2 Cột có ScrollViewer chống tràn màn hình laptop scale 125%/150% -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,14">
-            <Grid Margin="0,0,10,0">
-                <Grid.ColumnDefinitions>
-                    <!-- Cột trái: Thông tin cá nhân & Gói tập -->
-                <ColumnDefinition Width="380" />
-                <!-- Cột phải: Chụp ảnh Face ID -->
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <!-- CỘT TRÁI -->
-            <Border Grid.Column="0" Style="{StaticResource DialogCard}" Margin="0,0,14,0">
+        <!-- Form Card -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,14">
+            <Border Style="{StaticResource DialogCard}">
                 <StackPanel>
-                    <TextBlock Text="Thông Tin Hội Viên" FontSize="15" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,16" />
+                    <TextBlock Text="Thông Tin Hội Viên" FontSize="14" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,14" />
 
                     <!-- Họ và Tên -->
                     <TextBlock Text="Họ và Tên (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
-                    <TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="10,0" VerticalContentAlignment="Center" FontSize="13" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,14">
+                    <TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="10,0" VerticalContentAlignment="Center" FontSize="13" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,12">
                         <TextBox.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="6" />
@@ -136,269 +122,83 @@
                         </TextBox.Resources>
                     </TextBox>
 
-                    <!-- Số điện thoại -->
-                    <TextBlock Text="Số điện thoại (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
-                    <TextBox Text="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="10,0" VerticalContentAlignment="Center" FontSize="13" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" Margin="0,0,0,14">
-                        <TextBox.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="6" />
-                            </Style>
-                        </TextBox.Resources>
-                    </TextBox>
+                    <!-- Giới tính & Số điện thoại (2 cột) -->
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                    <!-- Giới tính -->
-                    <TextBlock Text="Giới tính (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                        <RadioButton Content="Nam"
-                                     IsChecked="{Binding Gender, Converter={StaticResource GenderToBoolConverter}, ConverterParameter=Nam}"
-                                     GroupName="GenderRegister" FontWeight="600" FontSize="13" Margin="0,0,28,0" Cursor="Hand" />
-                        <RadioButton Content="Nữ"
-                                     IsChecked="{Binding Gender, Converter={StaticResource GenderToBoolConverter}, ConverterParameter=Nữ}"
-                                     GroupName="GenderRegister" FontWeight="600" FontSize="13" Cursor="Hand" />
-                    </StackPanel>
+                        <!-- Giới tính -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Giới tính (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,8" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <RadioButton Content="Nam" IsChecked="{Binding IsMale}" Margin="0,0,16,0" FontSize="13" VerticalContentAlignment="Center" Cursor="Hand" />
+                                <RadioButton Content="Nữ" IsChecked="{Binding IsFemale}" FontSize="13" VerticalContentAlignment="Center" Cursor="Hand" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Số điện thoại -->
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Số điện thoại (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
+                            <TextBox Text="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" Height="38" Padding="10,0" VerticalContentAlignment="Center" FontSize="13" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                                <TextBox.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6" />
+                                    </Style>
+                                </TextBox.Resources>
+                            </TextBox>
+                        </StackPanel>
+                    </Grid>
 
                     <!-- Chọn gói tập -->
                     <TextBlock Text="Chọn Gói Tập (*)" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" Margin="0,0,0,6" />
-                    <ComboBox ItemsSource="{Binding Packages}" SelectedItem="{Binding SelectedPackage}" DisplayMemberPath="Name" Height="38" FontSize="13" VerticalContentAlignment="Center" Margin="0,0,0,8" />
+                    <ComboBox ItemsSource="{Binding Packages}" SelectedItem="{Binding SelectedPackage}" DisplayMemberPath="Name" Height="38" FontSize="13" VerticalContentAlignment="Center" Margin="0,0,0,10" />
 
-                    <!-- Chi tiết gói tập đã chọn -->
+                    <!-- Tóm tắt gói tập đã chọn -->
                     <Border Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,14">
                         <StackPanel>
                             <TextBlock Text="{Binding SelectedPackage.Name, FallbackValue='Chưa chọn gói tập'}" FontWeight="700" FontSize="13" Foreground="{StaticResource BrushPrimaryOrange}" />
-                            <TextBlock Text="{Binding SelectedPackage.DurationDays, StringFormat='Thời hạn hiệu lực: {0} ngày'}" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,3,0,0" />
+                            <TextBlock Text="{Binding SelectedPackage.DurationDays, StringFormat='Thời hạn tập: {0} ngày'}" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,3,0,0" />
                             <TextBlock Text="{Binding SelectedPackage.Price, StringFormat='Đơn giá: {0:#,##0} VNĐ'}" FontSize="12" FontWeight="600" Foreground="#10B981" Margin="0,2,0,0" />
                         </StackPanel>
                     </Border>
 
-                    <!-- Thông báo lỗi nếu có -->
-                    <TextBlock Text="{Binding ErrorMessage}" FontSize="12" FontWeight="600" Foreground="#EF4444" TextWrapping="Wrap" Margin="0,4,0,0" />
-                </StackPanel>
-            </Border>
-
-            <!-- CỘT PHẢI: CAMERA STREAM & CHỤP KHUÔN MẶT -->
-            <Border Grid.Column="1" Style="{StaticResource DialogCard}" Margin="6,0,0,0">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <!-- 1. Tiêu đề & Status -->
-                        <RowDefinition Height="Auto" />
-                        <!-- 2. Khung Camera & Oval Guide -->
-                        <RowDefinition Height="*" />
-                        <!-- 3. Panel Nút Chụp & Kết Quả Chụp -->
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <Grid Grid.Row="0" Margin="0,0,0,10">
-                        <TextBlock Text="Chụp Ảnh Mẫu Face ID" FontSize="15" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
-                        <Border Background="#FFF7ED" CornerRadius="12" Padding="8,3" HorizontalAlignment="Right">
-                            <TextBlock Text="{Binding CapturedAngleCount, StringFormat='Đã chụp: {0} góc'}" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
-                        </Border>
-                    </Grid>
-
-                    <!-- Khung Video Camera Live có Oval Guide -->
-                    <!-- Khung Video Camera Live có Bounding Box Cam #FF6B00 (Chỉ hiện khi có mặt) -->
-                    <Border Grid.Row="1" Background="#111827" CornerRadius="10" ClipToBounds="True" Margin="0,0,0,12">
-                        <Grid>
-                            <Image Source="{Binding CameraPreview}" Stretch="UniformToFill" />
-                        </Grid>
+                    <!-- Tùy chọn gán định danh (Thẻ từ / QR) -->
+                    <Border Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="🏷️ Tùy chọn gán định danh vật lý (Không bắt buộc):" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" Margin="0,0,0,8" />
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Mã thẻ từ RFID / NFC" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding CardUid, UpdateSourceTrigger=PropertyChanged}" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Mã QR thành viên" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding QrKey, UpdateSourceTrigger=PropertyChanged}" Height="32" Padding="8,0" VerticalContentAlignment="Center" FontSize="12" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
                     </Border>
 
-                    <!-- Thanh Tiến Trình Auto-Capture & Preview Ảnh Mẫu -->
-                    <!-- Thanh Điều Khiển, Visual Angle Guide & Progress -->
-                    <Grid Grid.Row="2">
-                        <Grid.RowDefinitions>
-                            <!-- 1. Nút Bắt Đầu Quét Face ID -->
-                            <RowDefinition Height="Auto" />
-                            <!-- 2. Bộ Hướng Dẫn Xoay Góc Mặt (Visual Angle Guide) -->
-                            <RowDefinition Height="Auto" />
-                            <!-- 3. Thanh ProgressBar (0/3 -> 3/3) -->
-                            <RowDefinition Height="Auto" />
-                            <!-- 4. Ảnh Crop & Thông báo trạng thái -->
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <!-- 1. Hàng Nút: Bắt Đầu Quét Face ID & Nút Bấm Chụp Ngay Thủ Công -->
-                        <Grid Grid.Row="0" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <!-- Nút tự động quét -->
-                            <Button Grid.Column="0"
-                                    Style="{StaticResource PrimaryBtn}"
-                                    Command="{Binding StartCaptureCommand}"
-                                    Content="{Binding StartCaptureButtonText}"
-                                    Height="38"
-                                    FontSize="13"
-                                    FontWeight="700" />
-                            <!-- Nút thủ công: Chụp ngay góc này -->
-                            <Button Grid.Column="2"
-                                    Background="#FFF7ED"
-                                    Foreground="#EA580C"
-                                    BorderBrush="#FDBA74"
-                                    BorderThickness="1.5"
-                                    FontWeight="700"
-                                    FontSize="12"
-                                    Height="38"
-                                    Padding="14,0"
-                                    Cursor="Hand"
-                                    Command="{Binding CaptureCurrentPoseCommand}">
-                                <Button.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="8" />
-                                    </Style>
-                                </Button.Resources>
-                                <TextBlock Text="📸 Chụp ngay góc này" VerticalAlignment="Center" />
-                            </Button>
-                        </Grid>
-
-                        <!-- 2. BỘ HƯỚNG DẪN XOAY GÓC MẶT (VISUAL ANGLE GUIDE) -->
-                        <Border Grid.Row="1" Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,0,0,10">
-                            <StackPanel>
-                                <!-- Header góc mục tiêu & badge trạng thái -->
-                                <Grid Margin="0,0,0,6">
-                                    <TextBlock Text="{Binding CurrentTargetAngleText}" FontSize="12" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
-                                    <Border HorizontalAlignment="Right" CornerRadius="10" Padding="8,2">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#FFF7ED" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsAngleMatched}" Value="True">
-                                                        <Setter Property="Background" Value="#D1FAE5" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <TextBlock FontSize="10" FontWeight="700">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Text" Value="CẦN XOAY ĐÚNG GÓC" />
-                                                    <Setter Property="Foreground" Value="#EA580C" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsAngleMatched}" Value="True">
-                                                            <Setter Property="Text" Value="✅ ĐÚNG GÓC (GIỮ YÊN)" />
-                                                            <Setter Property="Foreground" Value="#047857" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </Border>
-                                </Grid>
-
-                                <!-- Thanh Pose Indicator 3 Vùng (Trái 38% - Thẳng 24% - Phải 38%) -->
-                                <Grid Height="30">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="38*" />
-                                            <ColumnDefinition Width="24*" />
-                                            <ColumnDefinition Width="38*" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Vùng Trái -->
-                                        <Border Grid.Column="0" Background="#F3F4F6" CornerRadius="15,0,0,15" Margin="0,0,1,0">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsTargetLeft}" Value="True">
-                                                            <Setter Property="Background" Value="#FFEDD5" />
-                                                            <Setter Property="BorderBrush" Value="#FB923C" />
-                                                            <Setter Property="BorderThickness" Value="1.5" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock Text="👈 TRÁI" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-
-                                        <!-- Vùng Chính diện -->
-                                        <Border Grid.Column="1" Background="#F3F4F6" Margin="1,0,1,0">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsTargetCenter}" Value="True">
-                                                            <Setter Property="Background" Value="#FFEDD5" />
-                                                            <Setter Property="BorderBrush" Value="#FB923C" />
-                                                            <Setter Property="BorderThickness" Value="1.5" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock Text="THẲNG" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-
-                                        <!-- Vùng Phải -->
-                                        <Border Grid.Column="2" Background="#F3F4F6" CornerRadius="0,15,15,0" Margin="1,0,0,0">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsTargetRight}" Value="True">
-                                                            <Setter Property="Background" Value="#FFEDD5" />
-                                                            <Setter Property="BorderBrush" Value="#FB923C" />
-                                                            <Setter Property="BorderThickness" Value="1.5" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <TextBlock Text="PHẢI 👉" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                    </Grid>
-
-                                    <!-- Con trỏ Real-time di chuyển theo tỉ lệ góc xoay yaw -->
-                                    <Canvas IsHitTestVisible="False">
-                                        <Border Canvas.Left="{Binding PoseIndicatorPointerLeft}"
-                                                Canvas.Top="3"
-                                                Width="24" Height="24"
-                                                CornerRadius="12"
-                                                Background="{Binding AngleIndicatorColor}"
-                                                BorderBrush="#FFFFFF" BorderThickness="2">
-                                            <Border.Effect>
-                                                <DropShadowEffect Color="#000000" BlurRadius="4" Opacity="0.3" ShadowDepth="1" />
-                                            </Border.Effect>
-                                            <Ellipse Width="6" Height="6" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                    </Canvas>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- 3. Thanh ProgressBar tự động quét 3 mẫu Face ID (0/3 -> 1/3 -> 2/3 -> 3/3) -->
-                        <Grid Grid.Row="2" Margin="0,0,0,10">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <Grid Margin="0,0,0,4">
-                                    <TextBlock Text="Tiến trình hoàn thành Face ID:" FontSize="11" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" />
-                                    <TextBlock Text="{Binding ProgressText}" FontSize="11" FontWeight="800" Foreground="{StaticResource BrushPrimaryOrange}" HorizontalAlignment="Right" />
-                                </Grid>
-                                <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="7" Foreground="{StaticResource BrushPrimaryOrange}" Background="#E5E7EB" BorderThickness="0" />
-                            </StackPanel>
-                            <Button Grid.Column="1" Style="{StaticResource SecondaryBtn}" Command="{Binding ResetCaptureCommand}" Content="Quét lại" Height="28" Padding="8,0" Margin="10,8,0,0" VerticalAlignment="Bottom" />
-                        </Grid>
-
-                        <!-- 4. Thông báo trạng thái quét Face ID (Không còn khung avatar thừa) -->
-                        <Border Grid.Row="3" Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Padding="14,10">
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="{Binding StatusMessage}" Foreground="{Binding StatusColor}" FontSize="12" FontWeight="700" TextWrapping="Wrap" />
-                                <TextBlock Text="Hệ thống tự động nhận diện góc mặt qua Bounding Box và thanh Visual Angle Guide để chụp 3 mẫu Face ID đạt chuẩn." FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,3,0,0" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-                        </Grid>
-                </Grid>
+                    <!-- Thông báo lỗi nếu có -->
+                    <TextBlock Text="{Binding ErrorMessage}" FontSize="12" FontWeight="600" Foreground="#EF4444" TextWrapping="Wrap" />
+                </StackPanel>
             </Border>
-        </Grid>
         </ScrollViewer>
 
-        <!-- Bottom Action Bar -->
+        <!-- Actions -->
         <Border Grid.Row="2" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
-            <Grid>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Style="{StaticResource SecondaryBtn}" Content="Hủy bỏ" Command="{Binding CancelCommand}" Margin="0,0,12,0" Width="100" />
-                    <Button Style="{StaticResource PrimaryBtn}" Content="💾 Lưu Hội Viên &amp; Kích Hoạt Face ID" Command="{Binding SaveMemberCommand}" />
-                </StackPanel>
-            </Grid>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource SecondaryBtn}" Content="Hủy bỏ" Command="{Binding CancelCommand}" Width="90" Margin="0,0,12,0" />
+                <Button Style="{StaticResource PrimaryBtn}" Content="💾 Lưu Hội Viên" Command="{Binding SaveMemberCommand}" IsEnabled="{Binding CanSave}" />
+            </StackPanel>
         </Border>
     </Grid>
 </Window>
