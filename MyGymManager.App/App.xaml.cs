@@ -61,16 +61,6 @@ public partial class App : Application
             await viewModel.InitializeServicesAsync();
             mainWindow.Show();
 
-            // 6. Tự động mở màn hình phụ HDMI nếu phát hiện có màn hình thứ hai kết nối
-            try
-            {
-                if (System.Windows.Forms.Screen.AllScreens.Length > 1)
-                {
-                    var customerWindow = _serviceProvider.GetRequiredService<CustomerFacingWindow>();
-                    customerWindow.Show();
-                }
-            }
-            catch { }
         }
         catch (Exception ex)
         {
@@ -103,8 +93,6 @@ public partial class App : Application
         // ViewModels & Views
         services.AddSingleton<MainViewModel>();
         services.AddTransient<MainWindow>();
-        services.AddSingleton<CustomerFacingViewModel>();
-        services.AddTransient<CustomerFacingWindow>();
     }
     protected override async void OnExit(ExitEventArgs e)
     {

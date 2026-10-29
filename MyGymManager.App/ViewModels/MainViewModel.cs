@@ -401,7 +401,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand DeleteMemberCommand { get; }
     public ICommand RefreshLogsCommand { get; }
     public ICommand RefreshCamerasCommand { get; }
-    public ICommand OpenCustomerFacingWindowCommand { get; }
     public ICommand SetMemberFilterCommand { get; }
     public ICommand ViewMemberHistoryCommand { get; }
 
@@ -432,7 +431,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         DeleteMemberCommand = new RelayCommand<Member>(async (m) => await OnDeleteMemberAsync(m));
         RefreshLogsCommand = new RelayCommand(async () => await LoadTodayLogsAsync());
         RefreshCamerasCommand = new RelayCommand(async () => await LoadAvailableCamerasAsync());
-        OpenCustomerFacingWindowCommand = new RelayCommand(OnOpenCustomerFacingWindow);
         SetMemberFilterCommand = new RelayCommand<object>(param =>
         {
             if (param is MemberFilterMode mode)
@@ -1043,34 +1041,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private CustomerFacingWindow? _customerFacingWindow;
-
-    private void OnOpenCustomerFacingWindow()
-    {
-        try
-        {
-            if (_customerFacingWindow == null || !_customerFacingWindow.IsLoaded)
-            {
-                var vm = new CustomerFacingViewModel(_cameraService, _attendanceCoordinator);
-                _customerFacingWindow = new CustomerFacingWindow(vm)
-                {
-                    Owner = Application.Current?.MainWindow
-                };
-                _customerFacingWindow.Closed += (s, e) => _customerFacingWindow = null;
-                _customerFacingWindow.Show();
-                StatusMessage = "Đã mở màn hình phụ Kiosk Mode dành cho Khách Hàng.";
-            }
-            else
-            {
-                _customerFacingWindow.Activate();
-                _customerFacingWindow.AutoPositionToSecondaryScreen();
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Lỗi khi mở Màn hình phụ Khách Hàng: {ex.Message}", "Lỗi HDMI", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 
     private void OnAddPackage()
     {

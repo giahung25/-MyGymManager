@@ -307,21 +307,12 @@
 
                     <!-- Left: Title & Subtitle -->
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="CỔNG ĐIỂM DANH FACE ID" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
-                        <TextBlock Text="Nhận diện hội viên thời gian thực 60 FPS • Độ trễ &lt; 70ms" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
+                        <TextBlock Text="CỔNG ĐIỂM DANH HỘI VIÊN" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
+                        <TextBlock Text="Hỗ trợ Thẻ từ RFID / NFC, Mã QR Code, Quét SĐT tại quầy" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
                     </StackPanel>
 
                     <!-- Right: Camera Status Badge + Live Clock + Customer Facing HDMI Button -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Nút Mở Màn hình Khách HDMI -->
-                        <Button Style="{StaticResource SecondaryButton}"
-                                Command="{Binding OpenCustomerFacingWindowCommand}"
-                                Height="34" Padding="12,0" Margin="0,0,14,0"
-                                ToolTip="Mở Kiosk Màn hình phụ HDMI dành cho Khách Hàng">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="🖥️ Màn Hình Khách (HDMI)" FontSize="12" FontWeight="700" />
-                            </StackPanel>
-                        </Button>
 
                         <!-- Camera Status Pill -->
                         <Border Background="#F3F4F6" CornerRadius="20" Padding="12,6" Margin="0,0,16,0">
