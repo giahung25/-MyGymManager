@@ -305,11 +305,6 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Left: Title & Subtitle -->
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="CỔNG ĐIỂM DANH HỘI VIÊN" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
-                        <TextBlock Text="Hỗ trợ Thẻ từ RFID / NFC, Mã QR Code, Quét SĐT tại quầy" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
-                    </StackPanel>
 
                     <!-- Right: Camera Status Badge + Live Clock + Customer Facing HDMI Button -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -341,6 +336,25 @@
                 <TabItem>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28">
                         <StackPanel>
+                            <!-- Header Dashboard & Nút Xuất Excel -->
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="TỔNG QUAN HOẠT ĐỘNG PHÒNG GYM" FontSize="18" FontWeight="800" Foreground="{StaticResource BrushTextPrimary}" />
+                                    <TextBlock Text="Báo cáo lưu lượng giờ cao điểm, sức khỏe thẻ tập và xu hướng hội viên" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
+                                </StackPanel>
+
+                                <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Command="{Binding ExportMembersExcelCommand}" Height="38" Padding="16,0" ToolTip="Xuất toàn bộ danh sách hội viên và trạng thái thẻ ra file Excel (.csv)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="📥 Xuất Báo Cáo Excel" FontSize="12" FontWeight="700" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+
                             <!-- 3 Thẻ KPI thống kê nhanh -->
                             <Grid Margin="0,0,0,24">
                                 <Grid.ColumnDefinitions>
@@ -373,6 +387,142 @@
                                         <TextBlock Text="GÓI TẬP HIỆN HÀNH" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
                                         <TextBlock Text="{Binding PackagesList.Count, StringFormat='{}{0} gói'}" FontSize="32" FontWeight="800" Foreground="#10B981" Margin="0,8,0,0" />
                                         <TextBlock Text="Gói 1 tháng, 3 tháng, 1 năm" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- ================= CỤM BIỂU ĐỒ THỐNG KÊ (CHARTS GRID) ================= -->
+                            <Grid Margin="0,0,0,24">
+                                <Grid.ColumnDefinitions>
+                                    <!-- Cột Trái: Biểu đồ Giờ cao điểm (Width 60%) -->
+                                    <ColumnDefinition Width="6*" />
+                                    <!-- Cột Phải: Sức khỏe Thẻ tập & Gói tập (Width 4*) -->
+                                    <ColumnDefinition Width="4*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- BIỂU ĐỒ 1: LƯỢNG KHÁCH THEO KHUNG GIỜ CAO ĐIỂM -->
+                                <Border Grid.Column="0" Style="{StaticResource ModernCard}" Margin="0,0,16,0" Padding="20">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,16">
+                                            <StackPanel>
+                                                <TextBlock Text="Lưu Lượng Giờ Cao Điểm Hôm Nay" FontSize="15" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" />
+                                                <TextBlock Text="Thống kê số lượng lượt khách tập theo từng khung giờ trong ngày" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                            <Border Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="8" Padding="8,4" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                                <TextBlock Text="🔥 Peak Hours" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Khung Biểu Đồ Cột Vector XAML -->
+                                        <Border Height="180" Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="10" Padding="14,10,14,8">
+                                            <ItemsControl ItemsSource="{Binding HourlyTraffic}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <UniformGrid Rows="1" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="4,0">
+                                                            <Grid.RowDefinitions>
+                                                                <!-- Số lượng -->
+                                                                <RowDefinition Height="Auto" />
+                                                                <!-- Cột thanh dọc -->
+                                                                <RowDefinition Height="120" />
+                                                                <!-- Nhãn giờ -->
+                                                                <RowDefinition Height="Auto" />
+                                                            </Grid.RowDefinitions>
+
+                                                            <!-- Số lượt trên đỉnh cột -->
+                                                            <TextBlock Grid.Row="0" Text="{Binding CountText}" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" HorizontalAlignment="Center" Margin="0,0,0,4" />
+
+                                                            <!-- Cột bar với gradient cam -->
+                                                            <Border Grid.Row="1" Width="36" Height="{Binding BarHeight}" CornerRadius="6,6,2,2" VerticalAlignment="Bottom">
+                                                                <Border.Background>
+                                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                                        <GradientStop Color="#FF8533" Offset="0.0" />
+                                                                        <GradientStop Color="#FF6B00" Offset="1.0" />
+                                                                    </LinearGradientBrush>
+                                                                </Border.Background>
+                                                            </Border>
+
+                                                            <!-- Nhãn khung giờ -->
+                                                            <TextBlock Grid.Row="2" Text="{Binding TimeSlot}" FontSize="10" FontWeight="600" Foreground="{StaticResource BrushTextMuted}" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- BIỂU ĐỒ 2: CƠ CẤU HỘI VIÊN & GÓI TẬP -->
+                                <Border Grid.Column="1" Style="{StaticResource ModernCard}" Padding="20">
+                                    <StackPanel>
+                                        <TextBlock Text="Sức Khỏe Thẻ Tập &amp; Gói Tập" FontSize="15" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,16" />
+
+                                        <!-- Phân bổ trạng thái thẻ -->
+                                        <TextBlock Text="TỶ LỆ TRẠNG THÁI HỘI VIÊN" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" Margin="0,0,0,8" />
+                                        
+                                        <!-- 3 Card mini chỉ số trạng thái -->
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="6" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Đang hoạt động -->
+                                            <Border Grid.Column="0" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="8" Padding="8,6">
+                                                <StackPanel>
+                                                    <TextBlock Text="🟢 Đang tập" FontSize="10" FontWeight="600" Foreground="#047857" />
+                                                    <TextBlock Text="{Binding ActiveMembersCount, StringFormat='{}{0} người'}" FontSize="14" FontWeight="800" Foreground="#065F46" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Sắp hết hạn -->
+                                            <Border Grid.Column="2" Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="8" Padding="8,6">
+                                                <StackPanel>
+                                                    <TextBlock Text="⏰ Sắp hết" FontSize="10" FontWeight="600" Foreground="#B45309" />
+                                                    <TextBlock Text="{Binding ExpiringSoonMembersCount, StringFormat='{}{0} người'}" FontSize="14" FontWeight="800" Foreground="#92400E" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Đã hết hạn -->
+                                            <Border Grid.Column="4" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="8" Padding="8,6">
+                                                <StackPanel>
+                                                    <TextBlock Text="❌ Hết hạn" FontSize="10" FontWeight="600" Foreground="#B91C1C" />
+                                                    <TextBlock Text="{Binding ExpiredMembersCount, StringFormat='{}{0} người'}" FontSize="14" FontWeight="800" Foreground="#991B1B" Margin="0,2,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Phân bổ theo Gói Tập -->
+                                        <TextBlock Text="PHÂN BỔ THEO GÓI TẬP" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" Margin="0,6,0,8" />
+                                        <ItemsControl ItemsSource="{Binding PackageBreakdown}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="130" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="50" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding PackageName}" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                        <ProgressBar Grid.Column="1" Value="{Binding Percentage}" Maximum="100" Height="8" Margin="0,0,10,0" VerticalAlignment="Center" Foreground="{Binding ColorHex}" Background="#F3F4F6" BorderThickness="0">
+                                                            <ProgressBar.Resources>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="CornerRadius" Value="4" />
+                                                                </Style>
+                                                            </ProgressBar.Resources>
+                                                        </ProgressBar>
+                                                        <TextBlock Grid.Column="2" Text="{Binding PercentageText}" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -957,8 +1107,13 @@
                                 </Button>
                             </StackPanel>
 
-                            <!-- Actions: Thêm mới hội viên & Làm mới -->
+                            <!-- Actions: Xuất Excel, Thêm mới hội viên & Làm mới -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button Style="{StaticResource SecondaryButton}" Command="{Binding ExportMembersExcelCommand}" Height="42" Margin="0,0,10,0" ToolTip="Xuất danh sách hội viên và trạng thái thẻ ra file Excel (.csv)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="📥 Xuất Excel" FontSize="12" FontWeight="600" />
+                                    </StackPanel>
+                                </Button>
                                 <Button Style="{StaticResource SecondaryButton}" Content="Làm mới" Command="{Binding RefreshMembersCommand}" Height="42" Margin="0,0,10,0" />
                                 <Button Style="{StaticResource PrimaryButton}" Content="+ Đăng ký Hội viên mới" Command="{Binding RegisterNewMemberCommand}" Height="42" />
                             </StackPanel>

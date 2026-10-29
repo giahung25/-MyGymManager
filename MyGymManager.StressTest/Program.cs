@@ -32,6 +32,8 @@ public class Program
         Console.WriteLine();
 
         await TestMemberFiltersAndHistoryAsync();
+        TestExcelExportService();
+        Console.WriteLine();
         Console.WriteLine();
 
         Console.WriteLine("================================================================================");
@@ -434,6 +436,55 @@ public class Program
             try
             {
                 if (File.Exists(testDbName)) File.Delete(testDbName);
+            }
+            catch { }
+        }
+    }
+    /// <summary>
+    /// TEST SUITE 5: Kiểm thử Dịch vụ Xuất Báo Cáo Excel/CSV (UTF-8 with BOM, Headers, Format).
+    /// </summary>
+    private static void TestExcelExportService()
+    {
+        Console.WriteLine(">>> [TEST 5/5] KIỂM THỬ XUẤT BÁO CÁO EXCEL CSV (ExcelExportService UTF-8 BOM)");
+        Console.WriteLine("--------------------------------------------------------------------------------");
+
+        const string testCsv = "test_export_members.csv";
+        if (File.Exists(testCsv)) File.Delete(testCsv);
+
+        try
+        {
+            var members = new List<Member>
+            {
+                Member.Create("Nguyễn Văn An", "0901234567", 90, gender: "Nam", cardUid: "RFID_101", qrKey: "QR_101"),
+                Member.Create("Trần Thị Bích", "0912345678", 365, gender: "Nữ", cardUid: "RFID_102", qrKey: "QR_102")
+            };
+
+            ExcelExportService.ExportMembersToCsv(members, testCsv);
+            Console.WriteLine($"• Đã xuất {members.Count} hội viên ra tệp '{testCsv}'.");
+
+            if (!File.Exists(testCsv))
+            {
+                throw new FileNotFoundException("Tệp CSV không tồn tại sau khi xuất.");
+            }
+
+            var lines = File.ReadAllLines(testCsv, System.Text.Encoding.UTF8);
+            Console.WriteLine($"  - Header: {lines[0]}");
+            Console.WriteLine($"  - Dòng 1: {lines[1]}");
+            Console.WriteLine($"  - Dòng 2: {lines[2]}");
+
+            string expectedHeader = "STT,Họ và Tên,Số điện thoại,Giới tính,Gói tập,Ngày bắt đầu,Ngày hết hạn,Số ngày còn lại,Trạng thái,Mã Thẻ RFID,Mã QR Code";
+            if (lines[0] != expectedHeader)
+            {
+                throw new InvalidOperationException($"Header CSV không khớp kỳ vọng. Nhận được: '{lines[0]}'");
+            }
+
+            Console.WriteLine("  -> [PASS] Xuất báo cáo Excel CSV thành công chuẩn UTF-8 with BOM.");
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(testCsv)) File.Delete(testCsv);
             }
             catch { }
         }

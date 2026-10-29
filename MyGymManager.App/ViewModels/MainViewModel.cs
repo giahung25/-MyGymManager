@@ -33,6 +33,29 @@ public record TodayLogItem(
     bool IsValid);
 
 /// <summary>
+/// DTO biểu diễn cột thống kê lưu lượng khách theo khung giờ trên Dashboard.
+/// </summary>
+public class HourlyAttendanceBarItem
+{
+    public string TimeSlot { get; init; } = string.Empty;
+    public int Count { get; init; }
+    public double BarHeight { get; init; } = 8;
+    public string CountText => Count > 0 ? Count.ToString() : string.Empty;
+    public bool IsPeak { get; init; }
+}
+
+/// <summary>
+/// DTO biểu diễn tỷ lệ phân bổ gói tập trên Dashboard.
+/// </summary>
+public class PackageDistributionItem
+{
+    public string PackageName { get; init; } = string.Empty;
+    public int MemberCount { get; init; }
+    public double Percentage { get; init; }
+    public string PercentageText => $"{Percentage:F1}%";
+    public string ColorHex { get; init; } = "#FF6B00";
+}
+/// <summary>
 /// Chế độ lọc danh sách hội viên trên giao diện quản trị.
 /// </summary>
 public enum MemberFilterMode
@@ -261,6 +284,52 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         get => _todayLogsCountText;
         set => SetField(ref _todayLogsCountText, value);
     }
+    // Analytics & Dashboard Charts
+    private int _activeMembersCount;
+    private int _expiringSoonMembersCount;
+    private int _expiredMembersCount;
+    private double _activeMembersPercent;
+    private double _expiringSoonMembersPercent;
+    private double _expiredMembersPercent;
+
+    public int ActiveMembersCount
+    {
+        get => _activeMembersCount;
+        set => SetField(ref _activeMembersCount, value);
+    }
+
+    public int ExpiringSoonMembersCount
+    {
+        get => _expiringSoonMembersCount;
+        set => SetField(ref _expiringSoonMembersCount, value);
+    }
+
+    public int ExpiredMembersCount
+    {
+        get => _expiredMembersCount;
+        set => SetField(ref _expiredMembersCount, value);
+    }
+
+    public double ActiveMembersPercent
+    {
+        get => _activeMembersPercent;
+        set => SetField(ref _activeMembersPercent, value);
+    }
+
+    public double ExpiringSoonMembersPercent
+    {
+        get => _expiringSoonMembersPercent;
+        set => SetField(ref _expiringSoonMembersPercent, value);
+    }
+
+    public double ExpiredMembersPercent
+    {
+        get => _expiredMembersPercent;
+        set => SetField(ref _expiredMembersPercent, value);
+    }
+
+    public ObservableCollection<HourlyAttendanceBarItem> HourlyTraffic { get; } = new();
+    public ObservableCollection<PackageDistributionItem> PackageBreakdown { get; } = new();
 
     public string SystemClockText
     {
@@ -368,6 +437,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand RefreshCamerasCommand { get; }
     public ICommand SetMemberFilterCommand { get; }
     public ICommand ViewMemberHistoryCommand { get; }
+    public ICommand ExportMembersExcelCommand { get; }
 
     /// <summary>
     /// Constructor DI chính nhận các service được inject từ container.
@@ -419,6 +489,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             }
         });
         ViewMemberHistoryCommand = new RelayCommand<Member>(async m => await OnViewMemberHistoryAsync(m));
+        ExportMembersExcelCommand = new RelayCommand(OnExportMembersExcel);
 
         // Lắng nghe sự kiện từ CameraService
         if (_cameraService != null)
@@ -716,6 +787,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 }
 
                 TodayLogsCountText = $"{TodayLogs.Count} lượt";
+                UpdateHourlyTraffic(logs);
             });
         }
         catch (Exception ex)
@@ -776,7 +848,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             }
 
             var results = await query.OrderByDescending(m => m.CreatedAt).ToListAsync();
-
+            var allMembers = await _dbContext.Members.AsNoTracking().Include(m => m.Package).ToListAsync();
+            UpdateMemberAnalytics(allMembers);
             if (Application.Current?.Dispatcher != null)
             {
                 Application.Current.Dispatcher.Invoke(() =>
@@ -957,6 +1030,117 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             CameraStatusColor = new SolidColorBrush(Color.FromRgb(239, 68, 68));
             StatusMessage = $"Không thể mở camera {camera.Name}: {ex.Message}";
         }
+    }
+    private void UpdateHourlyTraffic(List<CheckInLog> logs)
+    {
+        var slots = new (string label, int startH, int endH)[]
+        {
+            ("06h-08h", 6, 8),
+            ("08h-10h", 8, 10),
+            ("10h-12h", 10, 12),
+            ("12h-14h", 12, 14),
+            ("14h-16h", 14, 16),
+            ("16h-18h", 16, 18),
+            ("18h-20h", 18, 20),
+            ("20h-22h", 20, 22),
+        };
+
+        var counts = new int[slots.Length];
+        foreach (var log in logs)
+        {
+            int h = log.CheckInTime.ToLocalTime().Hour;
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (h >= slots[i].startH && h < slots[i].endH)
+                {
+                    counts[i]++;
+                    break;
+                }
+            }
+        }
+
+        int maxCount = counts.Length > 0 ? counts.Max() : 0;
+        if (maxCount < 5) maxCount = 5;
+
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            HourlyTraffic.Clear();
+            for (int i = 0; i < slots.Length; i++)
+            {
+                int c = counts[i];
+                double h = 8.0 + (c > 0 ? ((double)c / maxCount * 110.0) : 0);
+                HourlyTraffic.Add(new HourlyAttendanceBarItem
+                {
+                    TimeSlot = slots[i].label,
+                    Count = c,
+                    BarHeight = h,
+                    IsPeak = c == maxCount && c > 0
+                });
+            }
+        });
+    }
+
+    private void UpdateMemberAnalytics(List<Member> allMembers)
+    {
+        var now = DateTime.UtcNow;
+        var threshold = now.AddDays(7);
+
+        int total = allMembers.Count;
+        int active = 0;
+        int expiring = 0;
+        int expired = 0;
+
+        foreach (var m in allMembers)
+        {
+            if (m.EndDate < now || !m.IsActive) expired++;
+            else if (m.EndDate <= threshold) expiring++;
+            else active++;
+        }
+
+        ActiveMembersCount = active;
+        ExpiringSoonMembersCount = expiring;
+        ExpiredMembersCount = expired;
+
+        ActiveMembersPercent = total > 0 ? (double)active / total * 100.0 : 0;
+        ExpiringSoonMembersPercent = total > 0 ? (double)expiring / total * 100.0 : 0;
+        ExpiredMembersPercent = total > 0 ? (double)expired / total * 100.0 : 0;
+
+        var pkgGroups = allMembers
+            .GroupBy(m => m.Package?.Name ?? "Gói tiêu chuẩn")
+            .Select(g => new { Name = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .ToList();
+
+        string[] colors = { "#FF6B00", "#10B981", "#2563EB", "#8B5CF6", "#F59E0B" };
+
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            PackageBreakdown.Clear();
+            int colorIdx = 0;
+            foreach (var g in pkgGroups)
+            {
+                double pct = total > 0 ? (double)g.Count / total * 100.0 : 0;
+                PackageBreakdown.Add(new PackageDistributionItem
+                {
+                    PackageName = g.Name,
+                    MemberCount = g.Count,
+                    Percentage = pct,
+                    ColorHex = colors[colorIdx % colors.Length]
+                });
+                colorIdx++;
+            }
+        });
+    }
+
+    private void OnExportMembersExcel()
+    {
+        if (MembersList == null || MembersList.Count == 0)
+        {
+            MessageBox.Show("Danh sách hội viên hiện đang trống.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        ExcelExportService.ExportMembersWithDialog(MembersList);
     }
     private void OnRegisterNewMember()
     {
