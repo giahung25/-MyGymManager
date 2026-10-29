@@ -20,12 +20,6 @@ public class Member
     public DateTime CreatedAt { get; private set; }
 
     /// <summary>
-    /// Danh sách các vector đặc trưng khuôn mặt 512 chiều (ArcFace embedding).
-    /// Hỗ trợ Multi-Template (chụp nhiều góc: thẳng, nghiêng trái, nghiêng phải).
-    /// </summary>
-    public List<float[]> FaceVectors { get; private set; } = new();
-
-    /// <summary>
     /// Mã định danh thẻ từ RFID / NFC (Mifare 13.56MHz UID).
     /// </summary>
     public string? CardUid { get; private set; }
@@ -39,6 +33,13 @@ public class Member
     /// Mã định danh QR Code thành viên (quét từ app di động).
     /// </summary>
     public string? QrKey { get; private set; }
+
+    /// <summary>
+    /// Định danh phần cứng hiển thị trên DataGrid (CardUid hoặc QrKey).
+    /// </summary>
+    public string HardwareIdentifier => !string.IsNullOrWhiteSpace(CardUid)
+        ? CardUid
+        : (!string.IsNullOrWhiteSpace(QrKey) ? QrKey : "--");
     // Navigation property lịch sử điểm danh
     public ICollection<CheckInLog> CheckInLogs { get; private set; } = new List<CheckInLog>();
 
@@ -52,20 +53,16 @@ public class Member
         string fullName,
         string phoneNumber,
         int packageDays,
-        float[]? initialFaceVector = null,
         Guid? packageId = null,
         string gender = "Nam",
         string? cardUid = null,
-        string? fingerprintData = null,
-        string? qrKey = null)
+        string? qrKey = null,
+        string? fingerprintData = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName, nameof(fullName));
         ArgumentException.ThrowIfNullOrWhiteSpace(phoneNumber, nameof(phoneNumber));
         if (packageDays <= 0)
             throw new ArgumentOutOfRangeException(nameof(packageDays), "Số ngày gói tập phải lớn hơn 0.");
-
-        if (initialFaceVector != null && initialFaceVector.Length != 512)
-            throw new ArgumentException("Vector khuôn mặt ban đầu phải có đúng 512 chiều.", nameof(initialFaceVector));
 
         var now = DateTime.UtcNow;
         var member = new Member
@@ -84,10 +81,6 @@ public class Member
             CreatedAt = now
         };
 
-        if (initialFaceVector != null)
-        {
-            member.FaceVectors.Add(initialFaceVector);
-        }
 
         return member;
     }
@@ -121,23 +114,6 @@ public class Member
         return (int)Math.Ceiling((EndDate - DateTime.UtcNow).TotalDays);
     }
 
-    /// <summary>
-    /// Bổ sung vector khuôn mặt mới (tối đa 5 templates góc chụp).
-    /// </summary>
-    public void AddFaceVector(float[] vector)
-    {
-        ArgumentNullException.ThrowIfNull(vector, nameof(vector));
-        if (vector.Length != 512)
-            throw new ArgumentException("Vector khuôn mặt phải có đúng 512 chiều.", nameof(vector));
-
-        if (FaceVectors.Count >= 5)
-        {
-            // Thay thế template cũ nhất nếu đã đạt giới hạn 5 góc
-            FaceVectors.RemoveAt(0);
-        }
-
-        FaceVectors.Add(vector);
-    }
 
     /// <summary>
     /// Cập nhật thông tin hồ sơ hội viên.

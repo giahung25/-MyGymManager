@@ -30,7 +30,6 @@ public partial class RegisterMemberWindow : Window
         if (DataContext is RegisterMemberViewModel vm)
         {
             vm.RequestClose -= OnRequestClose;
-            vm.Dispose();
         }
     }
 }

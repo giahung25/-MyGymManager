@@ -7,7 +7,6 @@ using MyGymManager.App.ViewModels;
 using MyGymManager.App.Views;
 using MyGymManager.Core.Interfaces;
 using MyGymManager.Data;
-using MyGymManager.Infrastructure.AI;
 using MyGymManager.Infrastructure.Camera;
 using MyGymManager.Infrastructure.Providers;
 using MyGymManager.Services;
@@ -43,14 +42,13 @@ public partial class App : Application
                 await DbInitializer.InitializeAsync(db);
             }
 
-            // 3. Khởi động AttendanceCoordinator và nạp vector hội viên vào RAM
+            // 3. Khởi động AttendanceCoordinator và nạp cache hội viên vào RAM
             var coordinator = _serviceProvider.GetRequiredService<AttendanceCoordinator>();
             await coordinator.LoadActiveMembersCacheAsync();
+            coordinator.RegisterProvider(_serviceProvider.GetRequiredService<RfidCardIdentificationProvider>());
+            coordinator.RegisterProvider(_serviceProvider.GetRequiredService<FingerprintIdentificationProvider>());
+            coordinator.RegisterProvider(_serviceProvider.GetRequiredService<QrCodeIdentificationProvider>());
             coordinator.Start();
-
-            // 4. Khởi chạy CameraService (Webcam USB index 1, tự động dò tìm và fallback)
-            var camera = _serviceProvider.GetRequiredService<ICameraService>();
-            await camera.StartAsync("1");
 
             // 5. Hiển thị MainWindow với MainViewModel được inject từ DI
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
@@ -60,16 +58,6 @@ public partial class App : Application
             await viewModel.InitializeServicesAsync();
             mainWindow.Show();
 
-            // 6. Tự động mở màn hình phụ HDMI nếu phát hiện có màn hình thứ hai kết nối
-            try
-            {
-                if (System.Windows.Forms.Screen.AllScreens.Length > 1)
-                {
-                    var customerWindow = _serviceProvider.GetRequiredService<CustomerFacingWindow>();
-                    customerWindow.Show();
-                }
-            }
-            catch { }
         }
         catch (Exception ex)
         {
@@ -90,23 +78,18 @@ public partial class App : Application
             options.UseSqlite($"Data Source={AppDbContext.DefaultDbFile}");
         });
 
-        // Tầng Core & Infrastructure (Singleton để tái sử dụng camera và AI engine)
+        // Tầng Core & Infrastructure
         services.AddSingleton<ICameraService, OpenCvCameraService>();
-        services.AddSingleton<IFaceEngine, OnnxFaceEngine>();
         services.AddSingleton<AttendanceCoordinator>();
         services.AddSingleton<AudioNotificationService>();
 
-        // Providers xác thực đa phương thức (Pluggable Identity Architecture)
-        services.AddSingleton<FaceIdentificationProvider>();
+        // Providers xác thực đa phương thức ngoài (Pluggable Identity Architecture)
         services.AddSingleton<RfidCardIdentificationProvider>();
         services.AddSingleton<FingerprintIdentificationProvider>();
         services.AddSingleton<QrCodeIdentificationProvider>();
-
         // ViewModels & Views
         services.AddSingleton<MainViewModel>();
         services.AddTransient<MainWindow>();
-        services.AddSingleton<CustomerFacingViewModel>();
-        services.AddTransient<CustomerFacingWindow>();
     }
     protected override async void OnExit(ExitEventArgs e)
     {

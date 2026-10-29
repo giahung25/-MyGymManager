@@ -9,7 +9,8 @@ public enum IdentificationMethod
     Fingerprint = 1,     // Máy quét vân tay sinh trắc học
     RfidCard = 2,        // Thẻ từ RFID / NFC (Mifare 13.56MHz)
     QrCode = 3,          // Mã QR thành viên trên điện thoại
-    Manual = 4           // Điểm danh thủ công qua SĐT
+    Manual = 4,          // Điểm danh thủ công qua SĐT
+    ManualSearch = 5    // Tìm kiếm SĐT / Tên tại quầy lễ tân
 }
 
 /// <summary>

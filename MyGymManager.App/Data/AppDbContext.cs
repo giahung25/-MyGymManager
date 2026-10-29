@@ -34,22 +34,6 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // 1. ValueConverter & ValueComparer cho List<float[]> FaceVectors (JSON trong SQLite)
-        var faceVectorsConverter = new ValueConverter<List<float[]>, string>(
-            vectors => JsonSerializer.Serialize(vectors, (JsonSerializerOptions?)null),
-            json => string.IsNullOrWhiteSpace(json)
-                ? new List<float[]>()
-                : JsonSerializer.Deserialize<List<float[]>>(json, (JsonSerializerOptions?)null) ?? new List<float[]>()
-        );
-
-        var faceVectorsComparer = new ValueComparer<List<float[]>>(
-            (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions?)null) == JsonSerializer.Serialize(c2, (JsonSerializerOptions?)null),
-            c => c == null ? 0 : c.Aggregate(0, (hash, v) => HashCode.Combine(hash, v != null ? v.Length : 0)),
-            c => c == null
-                ? new List<float[]>()
-                : JsonSerializer.Deserialize<List<float[]>>(JsonSerializer.Serialize(c, (JsonSerializerOptions?)null), (JsonSerializerOptions?)null) ?? new List<float[]>()
-        );
-
         // 2. Cấu hình bảng Members
         modelBuilder.Entity<Member>(entity =>
         {
@@ -82,10 +66,6 @@ public class AppDbContext : DbContext
             entity.Property(m => m.CreatedAt)
                   .IsRequired();
 
-            // Ánh xạ FaceVectors sang cột kiểu TEXT JSON trong SQLite
-            entity.Property(m => m.FaceVectors)
-                  .HasConversion(faceVectorsConverter)
-                  .Metadata.SetValueComparer(faceVectorsComparer);
 
             // Mối quan hệ Member -> Package (n:1)
             entity.HasOne(m => m.Package)

@@ -14,9 +14,7 @@ using MyGymManager.App.Views;
 using MyGymManager.Core.Entities;
 using MyGymManager.Core.Events;
 using MyGymManager.Core.Interfaces;
-using MyGymManager.Core.Models;
 using MyGymManager.Data;
-using MyGymManager.Infrastructure.AI;
 using MyGymManager.Infrastructure.Camera;
 using MyGymManager.Services;
 using OpenCvSharp;
@@ -52,74 +50,31 @@ public enum MemberFilterMode
 /// </summary>
 public class MainViewModel : INotifyPropertyChanged, IDisposable
 {
-    private int _selectedTabIndex = 1; // Mặc định tab 1: Cổng điểm danh
+    private int _selectedTabIndex = 0; // Mặc định tab 0: Bảng điều khiển (Dashboard)
     private BitmapSource? _cameraFeed;
     private Member? _currentMember;
     private string _statusMessage = "Hệ thống sẵn sàng đón hội viên";
     private Brush _statusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Xanh lá mặc định
 
-    private string _cameraStatusText = "Camera Live (DirectShow • 60 FPS)";
-    private Brush _cameraStatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-    private string _memberFullName = "Chờ nhận diện khuôn mặt...";
+    private string _cameraStatusText = "Camera Đã tắt";
+    private Brush _cameraStatusColor = new SolidColorBrush(Color.FromRgb(156, 163, 175));
+    private string _memberFullName = "Chờ quẹt thẻ / quét mã QR...";
     private string _memberPhoneNumber = "--";
     private string _memberPackageName = "--";
-    private string _memberExpiryText = "Vui lòng hướng mặt về phía camera";
+    private string _memberExpiryText = "Vui lòng quẹt thẻ từ hoặc quét mã QR tại quầy";
     private string _memberStatusBadgeText = "ĐANG CHỜ";
     private Brush _memberStatusBadgeBg = new SolidColorBrush(Color.FromRgb(243, 244, 246));
     private Brush _memberStatusBadgeFg = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+    private string _authDeviceBadgeText = "🏷️ Thẻ RFID";
     private string? _memberAvatarPath;
     private string _todayLogsCountText = "0 lượt";
     private string _systemClockText = string.Empty;
-    private bool _isCameraRunning = true;
+    private bool _isCameraRunning = false;
     private bool _isInitialized = false;
     // Cờ nguyên tử chống Dispatcher Queue Flooding (0: Rảnh, 1: Đang bận render UI)
     private int _isRenderingUi = 0;
-    private FaceBox? _lastDetectedFace;
-    private DateTime _lastFaceDetectedTime = DateTime.MinValue;
     private DateTime _lastUnidentifiedBeepTime = DateTime.MinValue;
-    // Bounding Box Face Detection Overlay
-    private bool _isFaceDetected = false;
-    private double _faceRectLeft = 0;
-    private double _faceRectTop = 0;
-    private double _faceRectWidth = 0;
-    private double _faceRectHeight = 0;
-    private string _faceBoxLabel = "FACE DETECTED";
 
-    public bool IsFaceDetected
-    {
-        get => _isFaceDetected;
-        set => SetField(ref _isFaceDetected, value);
-    }
-
-    public double FaceRectLeft
-    {
-        get => _faceRectLeft;
-        set => SetField(ref _faceRectLeft, value);
-    }
-
-    public double FaceRectTop
-    {
-        get => _faceRectTop;
-        set => SetField(ref _faceRectTop, value);
-    }
-
-    public double FaceRectWidth
-    {
-        get => _faceRectWidth;
-        set => SetField(ref _faceRectWidth, value);
-    }
-
-    public double FaceRectHeight
-    {
-        get => _faceRectHeight;
-        set => SetField(ref _faceRectHeight, value);
-    }
-
-    public string FaceBoxLabel
-    {
-        get => _faceBoxLabel;
-        set => SetField(ref _faceBoxLabel, value);
-    }
     // Camera selection
     private CameraDeviceInfo? _selectedCamera;
     private string _currentCameraSource = "1";
@@ -133,7 +88,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             if (SetField(ref _selectedCamera, value) && value != null)
             {
-                _ = SwitchCameraSourceAsync(value);
+                if (IsCameraRunning)
+                {
+                    _ = SwitchCameraSourceAsync(value);
+                }
             }
         }
     }
@@ -149,7 +107,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private readonly DispatcherTimer _clockTimer;
     private readonly ICameraService? _cameraService;
-    private readonly IFaceEngine? _faceEngine;
     private readonly AttendanceCoordinator? _attendanceCoordinator;
     private readonly AppDbContext? _dbContext;
     private readonly AudioNotificationService? _audioService;
@@ -287,6 +244,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         set => SetField(ref _memberStatusBadgeFg, value);
     }
 
+    public string AuthDeviceBadgeText
+    {
+        get => _authDeviceBadgeText;
+        set => SetField(ref _authDeviceBadgeText, value);
+    }
+
     public string? MemberAvatarPath
     {
         get => _memberAvatarPath;
@@ -403,7 +366,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand DeleteMemberCommand { get; }
     public ICommand RefreshLogsCommand { get; }
     public ICommand RefreshCamerasCommand { get; }
-    public ICommand OpenCustomerFacingWindowCommand { get; }
     public ICommand SetMemberFilterCommand { get; }
     public ICommand ViewMemberHistoryCommand { get; }
 
@@ -412,13 +374,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     /// </summary>
     public MainViewModel(
         ICameraService cameraService,
-        IFaceEngine faceEngine,
         AttendanceCoordinator attendanceCoordinator,
         AppDbContext dbContext,
         AudioNotificationService audioService)
     {
         _cameraService = cameraService;
-        _faceEngine = faceEngine;
         _attendanceCoordinator = attendanceCoordinator;
         _dbContext = dbContext;
         _audioService = audioService;
@@ -436,7 +396,6 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         DeleteMemberCommand = new RelayCommand<Member>(async (m) => await OnDeleteMemberAsync(m));
         RefreshLogsCommand = new RelayCommand(async () => await LoadTodayLogsAsync());
         RefreshCamerasCommand = new RelayCommand(async () => await LoadAvailableCamerasAsync());
-        OpenCustomerFacingWindowCommand = new RelayCommand(OnOpenCustomerFacingWindow);
         SetMemberFilterCommand = new RelayCommand<object>(param =>
         {
             if (param is MemberFilterMode mode)
@@ -471,8 +430,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_attendanceCoordinator != null)
         {
             _attendanceCoordinator.MemberIdentified += OnMemberIdentified;
-            _attendanceCoordinator.UnidentifiedFaceDetected += OnUnidentifiedFaceDetected;
-            _attendanceCoordinator.FaceDetected += OnFaceDetected;
+            _attendanceCoordinator.UnidentifiedDetected += OnUnidentifiedDetected;
         }
         // Khởi động đồng hồ hệ thống cập nhật mỗi giây
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -484,7 +442,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>
     /// Constructor không tham số dành cho XAML Designer / Fallback.
     /// </summary>
-    public MainViewModel() : this(null!, null!, null!, null!, null!)
+    public MainViewModel() : this(null!, null!, null!, null!)
     {
     }
 
@@ -532,28 +490,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            // CLONE FRAME để vẽ Bounding Box riêng cho UI, bảo toàn frame gốc cho các subscriber khác
-            using var displayMat = frame.Clone();
-
-            // VẼ TRỰC TIẾP BOUNDING BOX LÊN MAT BẰNG OPENCV:
-            if (_lastDetectedFace != null && (DateTime.UtcNow - _lastFaceDetectedTime).TotalMilliseconds < 600)
-            {
-                var rect = _lastDetectedFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, displayMat.Width, displayMat.Height));
-                if (rect.Width > 0 && rect.Height > 0)
-                {
-                    // Màu cam thể thao #FF6B00 trong BGR format là Scalar(0, 107, 255)
-                    var orangeColor = new Scalar(0, 107, 255);
-                    Cv2.Rectangle(displayMat, rect, orangeColor, 2);
-
-                    // Nhãn FACE DETECTED
-                    string label = $"FACE DETECTED ({_lastDetectedFace.Score * 100:F0}%)";
-                    var textPos = new OpenCvSharp.Point(rect.X, Math.Max(24, rect.Y - 8));
-                    Cv2.PutText(displayMat, label, textPos, HersheyFonts.HersheySimplex, 0.6, orangeColor, 2, LineTypes.AntiAlias);
-                }
-            }
-
             // Chuyển đổi Mat sang BitmapSource chuẩn WPF trên luồng Camera
-            var bitmap = BitmapSourceConverter.ToBitmapSource(displayMat);
+            var bitmap = BitmapSourceConverter.ToBitmapSource(frame);
             // Freeze giúp BitmapSource bất biến (thread-safe) và loại bỏ hoàn toàn GC pause
             bitmap.Freeze();
             Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
@@ -589,6 +527,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             MemberFullName = member.FullName;
             MemberPhoneNumber = string.IsNullOrWhiteSpace(member.PhoneNumber) ? "--" : member.PhoneNumber;
             MemberPackageName = member.Package?.Name ?? "Gói tập mặc định";
+            AuthDeviceBadgeText = e.Method switch
+            {
+                MyGymManager.Core.Interfaces.IdentificationMethod.RfidCard => "🏷️ Thẻ RFID",
+                MyGymManager.Core.Interfaces.IdentificationMethod.QrCode => "📱 Mã QR",
+                MyGymManager.Core.Interfaces.IdentificationMethod.Fingerprint => "🏢 Máy Chấm Công LAN",
+                MyGymManager.Core.Interfaces.IdentificationMethod.Manual or MyGymManager.Core.Interfaces.IdentificationMethod.ManualSearch => "⌨️ Nhập SĐT",
+                _ => "🏷️ Thẻ RFID"
+            };
 
             bool isExpired = member.IsExpired();
             if (isExpired)
@@ -646,9 +592,9 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
-    /// Xử lý sự kiện phát hiện khuôn mặt lạ không khớp hội viên nào.
+    /// Xử lý sự kiện phát hiện định danh lạ (thẻ từ / mã QR / số điện thoại) chưa được đăng ký trong hệ thống.
     /// </summary>
-    private void OnUnidentifiedFaceDetected(object? sender, float score)
+    private void OnUnidentifiedDetected(object? sender, string identifier)
     {
         Application.Current?.Dispatcher.Invoke(() =>
         {
@@ -656,32 +602,24 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             MemberFullName = "Khách Chưa Đăng Ký";
             MemberPhoneNumber = "Vui lòng đăng ký hội viên mới";
             MemberPackageName = "Chưa có gói tập";
-            MemberExpiryText = "Không tìm thấy hồ sơ khuôn mặt tương ứng";
-            MemberStatusBadgeText = "⚠️ KHÔNG NHẬN DIỆN ĐƯỢC";
+            MemberExpiryText = $"Mã định danh chưa gán: {identifier}";
+            MemberStatusBadgeText = "⚠️ CHƯA ĐĂNG KÝ";
             MemberStatusBadgeBg = new SolidColorBrush(Color.FromRgb(254, 243, 199)); // Vàng nhạt
             MemberStatusBadgeFg = new SolidColorBrush(Color.FromRgb(180, 83, 9));    // Vàng cam đậm
             StatusColor = new SolidColorBrush(Color.FromRgb(245, 158, 11));          // VÀNG / CAM
 
-            StatusMessage = $"Phát hiện khuôn mặt lạ (Score: {score:F2}). Nhấn '+ Đăng ký Face ID mới' để tạo hồ sơ.";
+            StatusMessage = $"Phát hiện định danh lạ ('{identifier}'). Nhấn '+ Đăng ký Hội Viên' để tạo hồ sơ.";
 
-            // Cooldown 4 giây chống spam âm thanh bíp khi có mặt lạ đứng trước camera
             var now = DateTime.UtcNow;
             if ((now - _lastUnidentifiedBeepTime).TotalSeconds >= 4)
             {
                 _lastUnidentifiedBeepTime = now;
-                _audioService?.PlayUnidentifiedFace();
+                _audioService?.PlayAlertSound();
             }
         });
     }
 
-    /// <summary>
-    /// Cập nhật vị trí Bounding Box hình chữ nhật màu cam quanh khuôn mặt khi phát hiện.
-    /// </summary>
-    private void OnFaceDetected(object? sender, FaceBox? face)
-    {
-        _lastDetectedFace = face;
-        _lastFaceDetectedTime = DateTime.UtcNow;
-    }
+
 
     /// <summary>
     /// Điểm danh thủ công qua Số điện thoại.
@@ -728,6 +666,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 ? $"⚠️ Điểm danh thành công nhưng THẺ ĐÃ HẾT HẠN ({member.FullName})"
                 : $"✅ Điểm danh thủ công thành công: {member.FullName}";
 
+            CurrentMember = member;
+            MemberFullName = member.FullName;
+            MemberPhoneNumber = member.PhoneNumber;
+            MemberPackageName = member.Package?.Name ?? "Gói tập mặc định";
+            AuthDeviceBadgeText = "⌨️ Nhập SĐT";
             ManualPhoneNumber = string.Empty;
         }
         catch (Exception ex)
@@ -1017,21 +960,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     }
     private void OnRegisterNewMember()
     {
-        if (_cameraService == null || _faceEngine == null || _dbContext == null || _attendanceCoordinator == null)
+        if (_dbContext == null || _attendanceCoordinator == null)
         {
             MessageBox.Show(
-                "Các dịch vụ hệ thống (Camera / AI / CSDL) chưa sẵn sàng.",
+                "Các dịch vụ hệ thống chưa sẵn sàng.",
                 "Thông báo",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return;
         }
 
-        // TẠM DỪNG AttendanceCoordinator trong lúc mở cửa sổ đăng ký để giải phóng tài nguyên và tránh ghi nhận nhầm
-        _attendanceCoordinator.Pause();
         try
         {
-            var registerVm = new RegisterMemberViewModel(_cameraService, _faceEngine, _dbContext, _attendanceCoordinator, _audioService);
+            var registerVm = new RegisterMemberViewModel(_dbContext, _attendanceCoordinator, _audioService);
             var window = new Views.RegisterMemberWindow(registerVm)
             {
                 Owner = Application.Current?.MainWindow
@@ -1040,7 +981,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             if (window.ShowDialog() == true)
             {
                 _ = LoadMembersAsync();
-                StatusMessage = "Đã lưu và kích hoạt Face ID cho hội viên mới thành công!";
+                StatusMessage = "Đã lưu thông tin hội viên mới thành công!";
                 StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
                 _audioService?.PlayCheckInSuccess();
             }
@@ -1049,41 +990,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             MessageBox.Show($"Lỗi khi mở giao diện đăng ký: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-        finally
-        {
-            // TIẾP TỤC nhận diện điểm danh sau khi đóng dialog đăng ký
-            _attendanceCoordinator.Resume();
-        }
     }
 
-    private CustomerFacingWindow? _customerFacingWindow;
-
-    private void OnOpenCustomerFacingWindow()
-    {
-        try
-        {
-            if (_customerFacingWindow == null || !_customerFacingWindow.IsLoaded)
-            {
-                var vm = new CustomerFacingViewModel(_cameraService, _attendanceCoordinator);
-                _customerFacingWindow = new CustomerFacingWindow(vm)
-                {
-                    Owner = Application.Current?.MainWindow
-                };
-                _customerFacingWindow.Closed += (s, e) => _customerFacingWindow = null;
-                _customerFacingWindow.Show();
-                StatusMessage = "Đã mở màn hình phụ Kiosk Mode dành cho Khách Hàng.";
-            }
-            else
-            {
-                _customerFacingWindow.Activate();
-                _customerFacingWindow.AutoPositionToSecondaryScreen();
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Lỗi khi mở Màn hình phụ Khách Hàng: {ex.Message}", "Lỗi HDMI", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 
     private void OnAddPackage()
     {
@@ -1212,7 +1120,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_dbContext == null || _attendanceCoordinator == null || member == null) return;
 
         var confirm = MessageBox.Show(
-            $"Bạn có chắc chắn muốn xóa hội viên '{member.FullName}' (SĐT: {member.PhoneNumber}) không?\nToàn bộ lịch sử điểm danh và dữ liệu Face ID của hội viên này sẽ bị xóa hoàn toàn.",
+            $"Bạn có chắc chắn muốn xóa hội viên '{member.FullName}' (SĐT: {member.PhoneNumber}) không?\nToàn bộ lịch sử điểm danh của hội viên này sẽ bị xóa hoàn toàn.",
             "Xác nhận xóa hội viên",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
@@ -1270,7 +1178,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_attendanceCoordinator != null)
         {
             _attendanceCoordinator.MemberIdentified -= OnMemberIdentified;
-            _attendanceCoordinator.UnidentifiedFaceDetected -= OnUnidentifiedFaceDetected;
+            _attendanceCoordinator.UnidentifiedDetected -= OnUnidentifiedDetected;
         }
 
         _disposed = true;
