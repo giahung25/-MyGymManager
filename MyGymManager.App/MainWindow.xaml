@@ -314,13 +314,6 @@
                     <!-- Right: Camera Status Badge + Live Clock + Customer Facing HDMI Button -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
 
-                        <!-- Camera Status Pill -->
-                        <Border Background="#F3F4F6" CornerRadius="20" Padding="12,6" Margin="0,0,16,0">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Ellipse Width="10" Height="10" Fill="{Binding CameraStatusColor}" Margin="0,0,8,0" />
-                                <TextBlock Text="{Binding CameraStatusText}" FontSize="12" FontWeight="600" Foreground="{StaticResource BrushTextSecondary}" />
-                            </StackPanel>
-                        </Border>
 
                         <!-- Live Real-Time Clock -->
                         <Border Background="#F9FAFB" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="20" Padding="14,6">
@@ -348,10 +341,9 @@
                 <TabItem>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28">
                         <StackPanel>
-                            <!-- 4 Thẻ KPI thống kê nhanh -->
+                            <!-- 3 Thẻ KPI thống kê nhanh -->
                             <Grid Margin="0,0,0,24">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
@@ -362,7 +354,7 @@
                                     <StackPanel>
                                         <TextBlock Text="ĐIỂM DANH HÔM NAY" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
                                         <TextBlock Text="{Binding TodayLogsCountText}" FontSize="32" FontWeight="800" Foreground="{StaticResource BrushPrimaryOrange}" Margin="0,8,0,0" />
-                                        <TextBlock Text="Cập nhật trực tiếp từ camera" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
+                                        <TextBlock Text="Tổng lượt vào phòng tập hôm nay" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
                                     </StackPanel>
                                 </Border>
 
@@ -371,25 +363,16 @@
                                     <StackPanel>
                                         <TextBlock Text="TỔNG SỐ HỘI VIÊN" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
                                         <TextBlock Text="{Binding MembersList.Count, StringFormat='{}{0} người'}" FontSize="32" FontWeight="800" Foreground="#2563EB" Margin="0,8,0,0" />
-                                        <TextBlock Text="Đã nạp vào bộ nhớ RAM" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
+                                        <TextBlock Text="Hồ sơ hội viên đã đăng ký" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Card 3: Gói tập đang mở bán -->
-                                <Border Grid.Column="2" Style="{StaticResource ModernCard}" Margin="6,0,6,0">
+                                <Border Grid.Column="2" Style="{StaticResource ModernCard}" Margin="12,0,0,0">
                                     <StackPanel>
                                         <TextBlock Text="GÓI TẬP HIỆN HÀNH" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
                                         <TextBlock Text="{Binding PackagesList.Count, StringFormat='{}{0} gói'}" FontSize="32" FontWeight="800" Foreground="#10B981" Margin="0,8,0,0" />
                                         <TextBlock Text="Gói 1 tháng, 3 tháng, 1 năm" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,4,0,0" />
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Card 4: Phương thức xác thực -->
-                                <Border Grid.Column="3" Style="{StaticResource ModernCard}" Margin="12,0,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="PHƯƠNG THỨC XÁC THỰC" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
-                                        <TextBlock Text="RFID • QR • LAN" FontSize="20" FontWeight="800" Foreground="#8B5CF6" Margin="0,14,0,0" />
-                                        <TextBlock Text="Đầu đọc USB / Máy chấm công" FontSize="12" Foreground="{StaticResource BrushTextMuted}" Margin="0,8,0,0" />
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -462,9 +445,9 @@
                                 <Border Style="{StaticResource ModernCard}" Margin="0,0,0,20">
                                     <StackPanel>
                                         <Grid Margin="0,0,0,14">
-                                            <TextBlock Text="Camera Quét Điểm Danh" FontSize="16" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
-                                            <Border Background="{StaticResource BrushPrimaryOrangeLight}" CornerRadius="12" Padding="8,4" HorizontalAlignment="Right">
-                                                <TextBlock Text="60 FPS" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushPrimaryOrange}" />
+                                            <TextBlock Text="Camera Giám Sát (Tùy chọn)" FontSize="16" FontWeight="700" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                            <Border Background="#F3F4F6" CornerRadius="12" Padding="8,4" HorizontalAlignment="Right">
+                                                <TextBlock Text="CCTV" FontSize="11" FontWeight="700" Foreground="{StaticResource BrushTextMuted}" />
                                             </Border>
                                         </Grid>
 
@@ -505,9 +488,7 @@
 
                                         <!-- Nút Bật/Tắt Camera -->
                                         <Button Style="{StaticResource SecondaryButton}" Command="{Binding ToggleCameraCommand}" Height="42" Margin="0,0,0,8">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="Bật / Tạm dừng Camera Quét" />
-                                            </StackPanel>
+                                                <TextBlock Text="Bật / Tắt Camera Giám Sát" />
                                         </Button>
 
                                         <!-- Thông báo trạng thái camera -->

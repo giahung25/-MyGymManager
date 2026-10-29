@@ -56,12 +56,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private string _statusMessage = "Hệ thống sẵn sàng đón hội viên";
     private Brush _statusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129)); // Xanh lá mặc định
 
-    private string _cameraStatusText = "Camera Live (DirectShow • 60 FPS)";
-    private Brush _cameraStatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-    private string _memberFullName = "Chờ nhận diện khuôn mặt...";
+    private string _cameraStatusText = "Camera Đã tắt";
+    private Brush _cameraStatusColor = new SolidColorBrush(Color.FromRgb(156, 163, 175));
+    private string _memberFullName = "Chờ quẹt thẻ / quét mã QR...";
     private string _memberPhoneNumber = "--";
     private string _memberPackageName = "--";
-    private string _memberExpiryText = "Vui lòng hướng mặt về phía camera";
+    private string _memberExpiryText = "Vui lòng quẹt thẻ từ hoặc quét mã QR tại quầy";
     private string _memberStatusBadgeText = "ĐANG CHỜ";
     private Brush _memberStatusBadgeBg = new SolidColorBrush(Color.FromRgb(243, 244, 246));
     private Brush _memberStatusBadgeFg = new SolidColorBrush(Color.FromRgb(107, 114, 128));
@@ -69,7 +69,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private string? _memberAvatarPath;
     private string _todayLogsCountText = "0 lượt";
     private string _systemClockText = string.Empty;
-    private bool _isCameraRunning = true;
+    private bool _isCameraRunning = false;
     private bool _isInitialized = false;
     // Cờ nguyên tử chống Dispatcher Queue Flooding (0: Rảnh, 1: Đang bận render UI)
     private int _isRenderingUi = 0;
@@ -88,7 +88,10 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             if (SetField(ref _selectedCamera, value) && value != null)
             {
-                _ = SwitchCameraSourceAsync(value);
+                if (IsCameraRunning)
+                {
+                    _ = SwitchCameraSourceAsync(value);
+                }
             }
         }
     }

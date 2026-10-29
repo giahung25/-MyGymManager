@@ -49,9 +49,6 @@ public partial class App : Application
             coordinator.RegisterProvider(_serviceProvider.GetRequiredService<FingerprintIdentificationProvider>());
             coordinator.RegisterProvider(_serviceProvider.GetRequiredService<QrCodeIdentificationProvider>());
             coordinator.Start();
-            // 4. Khởi chạy CameraService (Webcam USB index 1, tự động dò tìm và fallback)
-            var camera = _serviceProvider.GetRequiredService<ICameraService>();
-            await camera.StartAsync("1");
 
             // 5. Hiển thị MainWindow với MainViewModel được inject từ DI
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
