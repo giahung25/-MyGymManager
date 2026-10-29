@@ -1107,8 +1107,13 @@
                                 </Button>
                             </StackPanel>
 
-                            <!-- Actions: Xuất Excel, Thêm mới hội viên & Làm mới -->
+                            <!-- Actions: Nhập/Xuất Excel, Thêm mới hội viên & Làm mới -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button Style="{StaticResource SecondaryButton}" Command="{Binding ImportMembersExcelCommand}" Height="42" Margin="0,0,10,0" ToolTip="Nhập danh sách hội viên mới hoặc cập nhật hàng loạt từ file Excel (.csv)">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="📤 Nhập CSV" FontSize="12" FontWeight="600" />
+                                    </StackPanel>
+                                </Button>
                                 <Button Style="{StaticResource SecondaryButton}" Command="{Binding ExportMembersExcelCommand}" Height="42" Margin="0,0,10,0" ToolTip="Xuất danh sách hội viên và trạng thái thẻ ra file Excel (.csv)">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="📥 Xuất Excel" FontSize="12" FontWeight="600" />

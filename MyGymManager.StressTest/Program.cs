@@ -32,7 +32,7 @@ public class Program
         Console.WriteLine();
 
         await TestMemberFiltersAndHistoryAsync();
-        TestExcelExportService();
+        await TestExcelExportAndImportServiceAsync();
         Console.WriteLine();
         Console.WriteLine();
 
@@ -441,18 +441,28 @@ public class Program
         }
     }
     /// <summary>
-    /// TEST SUITE 5: Kiểm thử Dịch vụ Xuất Báo Cáo Excel/CSV (UTF-8 with BOM, Headers, Format).
+    /// TEST SUITE 5: Kiểm thử Dịch vụ Xuất & Nhập Báo Cáo Excel/CSV (UTF-8 with BOM, Bulk Upsert).
     /// </summary>
-    private static void TestExcelExportService()
+    private static async Task TestExcelExportAndImportServiceAsync()
     {
-        Console.WriteLine(">>> [TEST 5/5] KIỂM THỬ XUẤT BÁO CÁO EXCEL CSV (ExcelExportService UTF-8 BOM)");
+        Console.WriteLine(">>> [TEST 5/5] KIỂM THỬ XUẤT & NHẬP BÁO CÁO EXCEL CSV (Export & Bulk Upsert)");
         Console.WriteLine("--------------------------------------------------------------------------------");
 
         const string testCsv = "test_export_members.csv";
+        const string testDbName = "csv_import_test_temp.db";
         if (File.Exists(testCsv)) File.Delete(testCsv);
+        if (File.Exists(testDbName)) File.Delete(testDbName);
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite($"Data Source={testDbName}")
+            .Options;
 
         try
         {
+            using var db = new AppDbContext(options);
+            await db.Database.EnsureCreatedAsync();
+
+            // 1. Kiểm thử Xuất file CSV
             var members = new List<Member>
             {
                 Member.Create("Nguyễn Văn An", "0901234567", 90, gender: "Nam", cardUid: "RFID_101", qrKey: "QR_101"),
@@ -460,7 +470,7 @@ public class Program
             };
 
             ExcelExportService.ExportMembersToCsv(members, testCsv);
-            Console.WriteLine($"• Đã xuất {members.Count} hội viên ra tệp '{testCsv}'.");
+            Console.WriteLine($"• [Export] Đã xuất {members.Count} hội viên ra tệp '{testCsv}'.");
 
             if (!File.Exists(testCsv))
             {
@@ -468,23 +478,57 @@ public class Program
             }
 
             var lines = File.ReadAllLines(testCsv, System.Text.Encoding.UTF8);
-            Console.WriteLine($"  - Header: {lines[0]}");
-            Console.WriteLine($"  - Dòng 1: {lines[1]}");
-            Console.WriteLine($"  - Dòng 2: {lines[2]}");
-
             string expectedHeader = "STT,Họ và Tên,Số điện thoại,Giới tính,Gói tập,Ngày bắt đầu,Ngày hết hạn,Số ngày còn lại,Trạng thái,Mã Thẻ RFID,Mã QR Code";
             if (lines[0] != expectedHeader)
             {
                 throw new InvalidOperationException($"Header CSV không khớp kỳ vọng. Nhận được: '{lines[0]}'");
             }
-
             Console.WriteLine("  -> [PASS] Xuất báo cáo Excel CSV thành công chuẩn UTF-8 with BOM.");
+
+            // 2. Kiểm thử Nhập lần 1 (Import - Tạo mới 2 hội viên vào SQLite trống)
+            var importResult1 = await ExcelExportService.ImportMembersFromCsvAsync(testCsv, db);
+            Console.WriteLine($"• [Import lần 1] Thêm mới: {importResult1.AddedCount}, Cập nhật: {importResult1.UpdatedCount}");
+            if (importResult1.AddedCount != 2 || importResult1.UpdatedCount != 0)
+            {
+                throw new InvalidOperationException($"Import lần 1 sai: Added={importResult1.AddedCount}, Updated={importResult1.UpdatedCount}");
+            }
+            Console.WriteLine("  -> [PASS] Nhập lần 1 thêm mới 2/2 hội viên vào CSDL.");
+
+            // 3. Kiểm thử Cập nhật (Upsert): Sửa tên người 1 trong file CSV và bổ sung thêm người thứ 3
+            var updatedLines = new List<string>(lines)
+            {
+                "3,\"Lê Hoàng Cường\",\"0987654321\",\"Nam\",\"Gói Standard\",20/09/2026,19/10/2026,0,Đã hết hạn,\"RFID_103\",\"QR_103\""
+            };
+            // Sửa tên người 1
+            updatedLines[1] = "1,\"Nguyễn Văn An (Đã Cập Nhật)\",\"0901234567\",\"Nam\",\"Gói Tiêu Chuẩn\",29/10/2026,27/01/2027,90,Đang tập,\"RFID_101_NEW\",\"QR_101\"";
+            File.WriteAllLines(testCsv, updatedLines, new System.Text.UTF8Encoding(true));
+
+            var importResult2 = await ExcelExportService.ImportMembersFromCsvAsync(testCsv, db);
+            Console.WriteLine($"• [Import lần 2 - Upsert] Thêm mới: {importResult2.AddedCount}, Cập nhật: {importResult2.UpdatedCount}");
+            if (importResult2.AddedCount != 1 || importResult2.UpdatedCount != 2)
+            {
+                throw new InvalidOperationException($"Import lần 2 sai: Added={importResult2.AddedCount} (kỳ vọng 1), Updated={importResult2.UpdatedCount} (kỳ vọng 2)");
+            }
+
+            var member1 = await db.Members.FirstAsync(m => m.PhoneNumber == "0901234567");
+            if (member1.FullName != "Nguyễn Văn An (Đã Cập Nhật)" || member1.CardUid != "RFID_101_NEW")
+            {
+                throw new InvalidOperationException($"Dữ liệu cập nhật không đúng: '{member1.FullName}' / '{member1.CardUid}'");
+            }
+
+            var totalDbMembers = await db.Members.CountAsync();
+            if (totalDbMembers != 3)
+            {
+                throw new InvalidOperationException($"Tổng hội viên trong CSDL sai: {totalDbMembers} (kỳ vọng 3).");
+            }
+            Console.WriteLine("  -> [PASS] Nhập & Cập nhật CSV hàng loạt (Upsert) thành công 100%.");
         }
         finally
         {
             try
             {
                 if (File.Exists(testCsv)) File.Delete(testCsv);
+                if (File.Exists(testDbName)) File.Delete(testDbName);
             }
             catch { }
         }

@@ -438,6 +438,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand SetMemberFilterCommand { get; }
     public ICommand ViewMemberHistoryCommand { get; }
     public ICommand ExportMembersExcelCommand { get; }
+    public ICommand ImportMembersExcelCommand { get; }
 
     /// <summary>
     /// Constructor DI chính nhận các service được inject từ container.
@@ -490,6 +491,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         });
         ViewMemberHistoryCommand = new RelayCommand<Member>(async m => await OnViewMemberHistoryAsync(m));
         ExportMembersExcelCommand = new RelayCommand(OnExportMembersExcel);
+        ImportMembersExcelCommand = new RelayCommand(async () => await OnImportMembersExcelAsync());
 
         // Lắng nghe sự kiện từ CameraService
         if (_cameraService != null)
@@ -1141,6 +1143,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         }
 
         ExcelExportService.ExportMembersWithDialog(MembersList);
+    }
+
+    private async Task OnImportMembersExcelAsync()
+    {
+        if (_dbContext == null) return;
+
+        var result = await ExcelExportService.ImportMembersWithDialogAsync(_dbContext, _attendanceCoordinator);
+        if (result != null && (result.AddedCount > 0 || result.UpdatedCount > 0))
+        {
+            await LoadMembersAsync();
+            StatusMessage = $"Đã nhập CSV thành công: Thêm mới {result.AddedCount}, Cập nhật {result.UpdatedCount}.";
+            StatusColor = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+        }
     }
     private void OnRegisterNewMember()
     {
