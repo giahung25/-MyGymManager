@@ -33,6 +33,13 @@ public class Member
     /// Mã định danh QR Code thành viên (quét từ app di động).
     /// </summary>
     public string? QrKey { get; private set; }
+
+    /// <summary>
+    /// Định danh phần cứng hiển thị trên DataGrid (CardUid hoặc QrKey).
+    /// </summary>
+    public string HardwareIdentifier => !string.IsNullOrWhiteSpace(CardUid)
+        ? CardUid
+        : (!string.IsNullOrWhiteSpace(QrKey) ? QrKey : "--");
     // Navigation property lịch sử điểm danh
     public ICollection<CheckInLog> CheckInLogs { get; private set; } = new List<CheckInLog>();
 

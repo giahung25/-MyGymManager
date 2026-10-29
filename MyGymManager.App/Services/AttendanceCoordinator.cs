@@ -200,7 +200,7 @@ public class AttendanceCoordinator : IDisposable
         if (member == null)
         {
             UnidentifiedDetected?.Invoke(this, $"Không tìm thấy hội viên với mã định danh '{identifier}'.");
-            _audioService?.PlayUnidentifiedFace();
+            _audioService?.PlayAlertSound();
             return false;
         }
 

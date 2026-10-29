@@ -79,9 +79,9 @@ public class AudioNotificationService
     }
 
     /// <summary>
-    /// Phát âm thanh ngắn thông báo khi phát hiện khuôn mặt lạ chưa đăng ký.
+    /// Phát âm thanh cảnh báo khi phát hiện thẻ, mã QR hoặc định danh lạ chưa đăng ký trong hệ thống.
     /// </summary>
-    public void PlayUnidentifiedFace()
+    public void PlayAlertSound()
     {
         _ = Task.Run(() =>
         {

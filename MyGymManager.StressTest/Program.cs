@@ -5,7 +5,6 @@ using System.IO;
 using Microsoft.EntityFrameworkCore;
 using MyGymManager.Core.Entities;
 using MyGymManager.Core.Interfaces;
-using MyGymManager.Core.Models;
 using MyGymManager.Data;
 using MyGymManager.Infrastructure.Providers;
 using MyGymManager.Services;

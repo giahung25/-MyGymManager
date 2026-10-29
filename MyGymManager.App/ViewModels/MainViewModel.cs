@@ -14,7 +14,6 @@ using MyGymManager.App.Views;
 using MyGymManager.Core.Entities;
 using MyGymManager.Core.Events;
 using MyGymManager.Core.Interfaces;
-using MyGymManager.Core.Models;
 using MyGymManager.Data;
 using MyGymManager.Infrastructure.Camera;
 using MyGymManager.Services;
@@ -51,7 +50,7 @@ public enum MemberFilterMode
 /// </summary>
 public class MainViewModel : INotifyPropertyChanged, IDisposable
 {
-    private int _selectedTabIndex = 1; // Mặc định tab 1: Cổng điểm danh
+    private int _selectedTabIndex = 0; // Mặc định tab 0: Bảng điều khiển (Dashboard)
     private BitmapSource? _cameraFeed;
     private Member? _currentMember;
     private string _statusMessage = "Hệ thống sẵn sàng đón hội viên";
@@ -66,6 +65,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private string _memberStatusBadgeText = "ĐANG CHỜ";
     private Brush _memberStatusBadgeBg = new SolidColorBrush(Color.FromRgb(243, 244, 246));
     private Brush _memberStatusBadgeFg = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+    private string _authDeviceBadgeText = "🏷️ Thẻ RFID";
     private string? _memberAvatarPath;
     private string _todayLogsCountText = "0 lượt";
     private string _systemClockText = string.Empty;
@@ -73,52 +73,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     private bool _isInitialized = false;
     // Cờ nguyên tử chống Dispatcher Queue Flooding (0: Rảnh, 1: Đang bận render UI)
     private int _isRenderingUi = 0;
-    private FaceBox? _lastDetectedFace;
-    private DateTime _lastFaceDetectedTime = DateTime.MinValue;
     private DateTime _lastUnidentifiedBeepTime = DateTime.MinValue;
-    // Bounding Box Face Detection Overlay
-    private bool _isFaceDetected = false;
-    private double _faceRectLeft = 0;
-    private double _faceRectTop = 0;
-    private double _faceRectWidth = 0;
-    private double _faceRectHeight = 0;
-    private string _faceBoxLabel = "FACE DETECTED";
 
-    public bool IsFaceDetected
-    {
-        get => _isFaceDetected;
-        set => SetField(ref _isFaceDetected, value);
-    }
-
-    public double FaceRectLeft
-    {
-        get => _faceRectLeft;
-        set => SetField(ref _faceRectLeft, value);
-    }
-
-    public double FaceRectTop
-    {
-        get => _faceRectTop;
-        set => SetField(ref _faceRectTop, value);
-    }
-
-    public double FaceRectWidth
-    {
-        get => _faceRectWidth;
-        set => SetField(ref _faceRectWidth, value);
-    }
-
-    public double FaceRectHeight
-    {
-        get => _faceRectHeight;
-        set => SetField(ref _faceRectHeight, value);
-    }
-
-    public string FaceBoxLabel
-    {
-        get => _faceBoxLabel;
-        set => SetField(ref _faceBoxLabel, value);
-    }
     // Camera selection
     private CameraDeviceInfo? _selectedCamera;
     private string _currentCameraSource = "1";
@@ -283,6 +239,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     {
         get => _memberStatusBadgeFg;
         set => SetField(ref _memberStatusBadgeFg, value);
+    }
+
+    public string AuthDeviceBadgeText
+    {
+        get => _authDeviceBadgeText;
+        set => SetField(ref _authDeviceBadgeText, value);
     }
 
     public string? MemberAvatarPath
@@ -525,28 +487,8 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            // CLONE FRAME để vẽ Bounding Box riêng cho UI, bảo toàn frame gốc cho các subscriber khác
-            using var displayMat = frame.Clone();
-
-            // VẼ TRỰC TIẾP BOUNDING BOX LÊN MAT BẰNG OPENCV:
-            if (_lastDetectedFace != null && (DateTime.UtcNow - _lastFaceDetectedTime).TotalMilliseconds < 600)
-            {
-                var rect = _lastDetectedFace.ToRect().Intersect(new OpenCvSharp.Rect(0, 0, displayMat.Width, displayMat.Height));
-                if (rect.Width > 0 && rect.Height > 0)
-                {
-                    // Màu cam thể thao #FF6B00 trong BGR format là Scalar(0, 107, 255)
-                    var orangeColor = new Scalar(0, 107, 255);
-                    Cv2.Rectangle(displayMat, rect, orangeColor, 2);
-
-                    // Nhãn FACE DETECTED
-                    string label = $"FACE DETECTED ({_lastDetectedFace.Score * 100:F0}%)";
-                    var textPos = new OpenCvSharp.Point(rect.X, Math.Max(24, rect.Y - 8));
-                    Cv2.PutText(displayMat, label, textPos, HersheyFonts.HersheySimplex, 0.6, orangeColor, 2, LineTypes.AntiAlias);
-                }
-            }
-
             // Chuyển đổi Mat sang BitmapSource chuẩn WPF trên luồng Camera
-            var bitmap = BitmapSourceConverter.ToBitmapSource(displayMat);
+            var bitmap = BitmapSourceConverter.ToBitmapSource(frame);
             // Freeze giúp BitmapSource bất biến (thread-safe) và loại bỏ hoàn toàn GC pause
             bitmap.Freeze();
             Application.Current?.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
@@ -582,6 +524,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             MemberFullName = member.FullName;
             MemberPhoneNumber = string.IsNullOrWhiteSpace(member.PhoneNumber) ? "--" : member.PhoneNumber;
             MemberPackageName = member.Package?.Name ?? "Gói tập mặc định";
+            AuthDeviceBadgeText = e.Method switch
+            {
+                MyGymManager.Core.Interfaces.IdentificationMethod.RfidCard => "🏷️ Thẻ RFID",
+                MyGymManager.Core.Interfaces.IdentificationMethod.QrCode => "📱 Mã QR",
+                MyGymManager.Core.Interfaces.IdentificationMethod.Fingerprint => "🏢 Máy Chấm Công LAN",
+                MyGymManager.Core.Interfaces.IdentificationMethod.Manual or MyGymManager.Core.Interfaces.IdentificationMethod.ManualSearch => "⌨️ Nhập SĐT",
+                _ => "🏷️ Thẻ RFID"
+            };
 
             bool isExpired = member.IsExpired();
             if (isExpired)
@@ -661,19 +611,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
             if ((now - _lastUnidentifiedBeepTime).TotalSeconds >= 4)
             {
                 _lastUnidentifiedBeepTime = now;
-                _audioService?.PlayUnidentifiedFace();
+                _audioService?.PlayAlertSound();
             }
         });
     }
 
-    /// <summary>
-    /// Cập nhật vị trí Bounding Box hình chữ nhật màu cam quanh khuôn mặt khi phát hiện.
-    /// </summary>
-    private void OnFaceDetected(object? sender, FaceBox? face)
-    {
-        _lastDetectedFace = face;
-        _lastFaceDetectedTime = DateTime.UtcNow;
-    }
+
 
     /// <summary>
     /// Điểm danh thủ công qua Số điện thoại.
@@ -720,6 +663,11 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                 ? $"⚠️ Điểm danh thành công nhưng THẺ ĐÃ HẾT HẠN ({member.FullName})"
                 : $"✅ Điểm danh thủ công thành công: {member.FullName}";
 
+            CurrentMember = member;
+            MemberFullName = member.FullName;
+            MemberPhoneNumber = member.PhoneNumber;
+            MemberPackageName = member.Package?.Name ?? "Gói tập mặc định";
+            AuthDeviceBadgeText = "⌨️ Nhập SĐT";
             ManualPhoneNumber = string.Empty;
         }
         catch (Exception ex)
@@ -1169,7 +1117,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         if (_dbContext == null || _attendanceCoordinator == null || member == null) return;
 
         var confirm = MessageBox.Show(
-            $"Bạn có chắc chắn muốn xóa hội viên '{member.FullName}' (SĐT: {member.PhoneNumber}) không?\nToàn bộ lịch sử điểm danh và dữ liệu Face ID của hội viên này sẽ bị xóa hoàn toàn.",
+            $"Bạn có chắc chắn muốn xóa hội viên '{member.FullName}' (SĐT: {member.PhoneNumber}) không?\nToàn bộ lịch sử điểm danh của hội viên này sẽ bị xóa hoàn toàn.",
             "Xác nhận xóa hội viên",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
